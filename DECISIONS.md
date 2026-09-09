@@ -458,6 +458,36 @@ gemini-3.5-flash → 3.5-flash-lite → 3.1-flash-lite → 3-flash-preview → 3
 
 ---
 
+## D-017 ✅ 배포 — 전용 이름 터널을 따로 만든다
+
+**날짜** 2026-09-09
+
+**결정** `cloudflared` 로 `cardnews.dodami-ai.com` 에 붙인다.
+**기존 서비스 설정(`~/.cloudflared/config.yml`)은 열지도 않고**, 전용 터널과 전용 config 를 새로 만든다.
+
+**임시 터널을 버린 이유** `trycloudflare` 임시 터널을 먼저 시도했는데
+호스트명 매핑이 붙지 않아 계속 404 였다. 연결도 1개만 등록됐다.
+Cloudflare 자신이 로그에 *"no uptime guarantee"* 라고 밝히는 무보증 서비스다.
+채점 기간에 살아 있어야 하므로 이름 있는 터널로 갔다.
+
+**🔴 여기서 사고가 하나 났다 — 기록해 둔다**
+
+```
+cloudflared tunnel route dns cardnews cardnews.dodami-ai.com
+→ Added CNAME ... tunnelID=fe3589b3-...   (이음이 터널)
+```
+
+`--config` 를 안 붙이면 **이름 인자를 무시하고 기본 설정의 터널로 CNAME 을 건다.**
+`--config` 를 지정하고 `--overwrite-dns` 로 다시 걸어 바로잡았다.
+이음이 ingress 규칙과 라우팅은 바뀌지 않았고 `chat.dodami-ai.com` 은 200 을 유지했다.
+
+**교훈** 공용 CLI 가 여러 프로젝트의 설정을 공유할 때는
+**모든 명령에 `--config` 를 명시**해야 한다. 전역 규칙 11번(기지에서 실행하지 않는다)의 CLI 판이다.
+
+**수용 기준 재확인** README 의 표에 결과를 남겼다. 5개 항목 모두 통과.
+
+---
+
 ## ⬜ 아직 정하지 않은 것
 
 `PRD.md` 9장 참조. 남은 것은 카드 양식·폰트·LINE 실채널·Antigravity 한도 실측·

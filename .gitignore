@@ -21,6 +21,9 @@ __pycache__/
 # 노드
 node_modules/
 
+# 배포 설정 — 터널 UUID·자격증명 경로가 들어간다. 예시 파일만 커밋한다
+deploy/cloudflared.yml
+
 # 실행 산출물 · 상태 저장소
 output/
 runs/

@@ -50,6 +50,33 @@ uv run uvicorn app.main:app --port 8765
 브라우저에서 <http://localhost:8765> 를 연다.
 `/healthz` 는 서버가 떴는지만이 아니라 **DB 테이블까지** 확인한다.
 
+### 배포
+
+Cloudflare Tunnel 로 로컬 서버를 공개 주소에 붙인다.
+**기존 서비스의 `~/.cloudflared/config.yml` 은 건드리지 않고 전용 설정을 따로 쓴다.**
+
+```bash
+cp deploy/cloudflared.example.yml deploy/cloudflared.yml   # 값을 채운다
+cloudflared --config deploy/cloudflared.yml tunnel run cardnews
+```
+
+> ⚠️ `cloudflared tunnel route dns` 를 `--config` 없이 부르면 **기본 설정의 다른 터널**로
+> CNAME 이 걸린다. 실제로 한 번 그렇게 됐다. 반드시 `--config` 를 붙일 것.
+
+![배포된 화면](docs/screenshots/08-deploy.png)
+
+### 수용 기준과 재확인
+
+배포 후 아래 기준으로 다시 확인한다.
+
+| # | 기준 | 결과 |
+|---|---|---|
+| 1 | 공개 URL 로 시작·기록 화면에 접속된다 | ✅ `/` 200 (0.42초) · `/runs` 200 |
+| 2 | 서버뿐 아니라 **DB 까지** 정상이다 | ✅ `status=ok, db=ok, tables=6` |
+| 3 | 채점자가 눌러도 **실제 발송이 안 된다** | ✅ `line_send_enabled=false` |
+| 4 | 같은 호스트의 다른 서비스에 영향이 없다 | ✅ 기존 서비스 200 유지 |
+| 5 | 대표 시나리오에서 카드 5장이 만들어진다 | ✅ [EVAL.md](EVAL.md) 참고 |
+
 ### 자체 MCP 서버 따로 띄우기
 
 ```bash
