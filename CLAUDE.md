@@ -58,27 +58,36 @@ gh repo edit nike1137-svg/mainquest4-cardnews --visibility public --accept-visib
 - [x] `PRD.md` 작성 (루브릭 필수 6항목 + 종료조건 + 실패처리 + 평가설계)
 - [x] 확장 계획 확정 (`PRD.md` 10장) — 6개 검토, 1~4번 구현 약속
 - [x] GitHub 저장소 생성 (PRIVATE)
-- [ ] 미결정 사항 확정 (`PRD.md` 9장)
+- [x] **두뇌 LLM 확정** (D-010) — Gemini 2.5 Flash 기본 + OpenAI GPT-5 mini 비교·시연
+- [x] **검색·원문 도구 확정** (D-011) — Tavily + httpx/trafilatura
+- [x] **기술 스택·기기 확정** (D-012) — FastAPI+Jinja2+HTMX+SSE / SQLite(WAL) / 노트북 Windows
 - [ ] 프로젝트 뼈대
 - [ ] 도구 연결 → 에이전트 루프 → 화면 → 배포
 
-**코드는 아직 한 줄도 없다.**
+**코드는 아직 한 줄도 없다.** 남은 미결정은 `PRD.md` 9장 (카드 양식·폰트·LINE 실채널·
+Antigravity 한도 실측·OpenAI 하드 리밋 확인·평가 목표치·퍼실 확인). **뼈대 착수를 막지 않는다.**
+
+### 이 기기에 있는 것 / 없는 것 (2026-09-09 확인)
+
+| 있음 | Python 3.12.10 · Node 24 · uv 0.11.28 · claude CLI · opencode · `GEMINI_API_KEY` 설정됨 |
+|---|---|
+| **없음** | **Antigravity CLI(`agy`)** · `OPENAI_API_KEY` 환경변수 (VS Code에 입력해둔 상태) · Tavily 키 |
 
 ---
 
 ## 다음에 할 일 (순서대로)
 
-1. **`PRD.md` 9장의 미결정 항목 확정** — 웹 프레임워크·상태 저장소부터
-2. 프로젝트 뼈대 + `.env.example`
-3. 도구 6종 연결 (입출력 스키마 + 실패 처리)
+1. 프로젝트 뼈대 + `.env.example` (`GEMINI_API_KEY` / `OPENAI_API_KEY` / `TAVILY_API_KEY`)
+2. **LLM 어댑터** — Gemini / OpenAI 교체 가능하게. **비용·호출 상한 카운터를 여기 넣는다**
+3. 도구 6종 연결 (입출력 스키마 + description + 실패 처리)
 4. 에이전트 루프 + 상태 저장(중단·재개) + **종료 조건**
-5. 질문/재개 화면 + 실행 로그 패널
+5. 질문/재개 화면 + 실행 로그 패널 (SSE)
 6. **`runs/<실행ID>/trace.json` · `outcome.json` 저장** ⭐확장1
    → 🔴 **여기서 안 넣으면 나중에 평가 표를 만들 수 없다**
 7. 카드 합성 (배경 + 텍스트 레이어)
 8. 검수·내보내기
 9. 비용·소요시간 대시보드 화면 ⭐확장2
-10. 실험·평가 표 (`EVAL.md`)
+10. 실험·평가 표 (`EVAL.md`) — **모델 2종 비교가 여기 들어간다**
 11. 배포 + 수용 기준 점검
     ───── 여기까지 MVP ─────
 12. 자체 MCP 서버 ⭐확장3
@@ -108,6 +117,14 @@ gh repo edit nike1137-svg/mainquest4-cardnews --visibility public --accept-visib
 - 🔴 **발송 실패 시 자동 재시도 금지** (중복 발송 위험). 사람이 다시 누르게 한다
 - 🔴 **Antigravity CLI에 `--dangerously-skip-permissions` 쓰지 않는다.** 필요한 도구만 개별 허용
 - 🔴 **API 키는 환경변수.** `.env` 커밋 금지
+- 🔴 **OpenAI 비용 상한을 코드에 박는다** — 1회 실행당 $0.30, 누적 $3.00 도달 시 중단.
+  기관 지급 크레딧 $5이고, **계정에 결제수단이 연결돼 있으면 초과분이 기관에 청구된다.**
+  대시보드 Usage limits 확인은 별개로 해야 한다
+- 🔴 **Gemini 무료 티어는 입력이 학습에 쓰일 수 있다** (9번 규칙).
+  LINE 토큰·`.env` 내용·실서비스 자격증명을 **프롬프트에 넣지 않는다.**
+  도구 결과를 프롬프트에 담을 때 키가 섞이지 않는지 걸러내는 필터를 둘 것
+- 🔴 **CLI 위임(`claude -p`, `opencode run`)을 쓰지 않는다** — CLI 자체가 에이전트라
+  내가 정의한 도구 스키마가 남지 않고 루브릭 2번 증거가 약해진다. **함수 호출 API로 직접 호출**
 - 🟡 파일 쓰기는 `output/<실행ID>/` 안으로만 제한
 - 🟡 온담이/이음이 등 **실서비스 n8n 워크플로와 절대 섞지 않는다.** 인스턴스를 공유하더라도
   워크플로와 자격증명은 분리
