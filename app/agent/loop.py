@@ -169,7 +169,10 @@ class AgentLoop:
         state.start_step(self.run_id, phase["no"])
         state.bump_loop(self.run_id)
 
-        adapter = get_adapter(run_id=self.run_id)
+        # 실행에 기록된 제공자·모델을 쓴다. 설정 기본값을 쓰면 세팅 비교가 불가능하다.
+        adapter = get_adapter(provider=run.provider or None,
+                              model=run.model or None,
+                              run_id=self.run_id)
         try:
             result = await adapter.chat(self._context(run, phase), tools=self._tools(phase))
         except BudgetExceeded as exc:

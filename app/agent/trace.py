@@ -76,10 +76,18 @@ def build_outcome(run_id: str) -> dict[str, Any]:
 
     compose = [c for c in calls if c["tool_name"] == "compose_cards" and c["ok"]]
 
+    # 실제로 응답한 모델을 센다. 한도에 걸려 폴백되면 설정값과 달라진다 (D-016).
+    used: dict[str, int] = {}
+    for u in trace["llm_usage"]:
+        used[u["model"]] = used.get(u["model"], 0) + 1
+    primary = max(used, key=used.get) if used else trace["model"]
+
     return {
         "run_id": run_id,
         "topic": trace["topic"],
-        "model": f"{trace['provider']}/{trace['model']}",
+        "configured_model": f"{trace['provider']}/{trace['model']}",
+        "model": f"{trace['provider']}/{primary}",   # 가장 많이 응답한 모델
+        "models_used": used,
         # 완주 = 마지막 단계까지 끝났는가
         "completed": trace["status"] == "done",
         "status": trace["status"],
