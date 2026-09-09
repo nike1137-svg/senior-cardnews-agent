@@ -1,0 +1,244 @@
+"""에이전트 루프 (D-007: 직접 구현).
+
+    목표 → 계획 → 도구 호출 → 결과 관찰 → **다음 행동 결정** → 반복
+
+파이프라인이 아니다. 매 반복마다 모델이 관찰 결과를 보고 셋 중 하나를 고른다.
+
+    ① 도구를 부른다      ② 사람에게 묻는다      ③ 이 단계를 끝낸다
+
+종료 조건이 없으면 무한히 돈다. 네 가지로 막는다.
+    단계별 재시도 3회 · 전체 반복 20회 · 전체 10분 · 비용/호출 상한(어댑터가 막음)
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from datetime import datetime, timezone
+
+from app.agent import state
+from app.config import get_settings
+from app.llm import Message, ToolSpec, get_adapter
+from app.llm.budget import BudgetExceeded
+from app.tools import registry, run_tool
+from app.tools.base import Failure, OnFail, log_call, ToolResult
+
+# ── 루프 제어용 도구 ────────────────────────────────────────
+# 실제 작업 도구가 아니라 '다음 행동'을 표현하는 수단이다.
+ASK_HUMAN = ToolSpec(
+    name="ask_human",
+    description=(
+        "사람에게 물어보고 답을 기다린다. 되돌리기 어려운 결정, 취향이 갈리는 선택, "
+        "자료가 부족해 방향을 정해야 할 때 쓴다. 추측으로 진행하지 말 것. "
+        "질문은 짧게, 선택지는 사람이 고르기 쉽게 3~5개로 준다."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "question_id": {"type": "string",
+                            "description": "질문 구분용 짧은 영문 id. 예) pick-news, approve-storyboard"},
+            "question": {"type": "string", "description": "사람에게 보여줄 질문 한 문장"},
+            "options": {"type": "array", "items": {"type": "string"},
+                        "description": "고를 수 있는 선택지"},
+            "multi_select": {"type": "boolean", "description": "여러 개를 고를 수 있는가",
+                             "default": False},
+        },
+        "required": ["question_id", "question"],
+    },
+)
+
+FINISH_STEP = ToolSpec(
+    name="finish_step",
+    description=(
+        "지금 단계의 목표를 달성했다고 판단되면 호출해 다음 단계로 넘어간다. "
+        "무엇을 얻었는지 한 줄로 요약해 남긴다. 아직 부족하면 호출하지 말고 도구를 더 쓴다."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {"summary": {"type": "string", "description": "이 단계에서 얻은 것 요약"}},
+        "required": ["summary"],
+    },
+)
+
+SYSTEM = """\
+너는 시니어(60~80대)에게 보낼 생활정보 카드뉴스를 만드는 에이전트다.
+
+지켜야 할 것
+- 한 카드에 메시지는 하나만. 짧고 쉬운 우리말로 쓴다
+- 외래어·전문용어를 쓰지 않는다. 풀어서 쓴다
+- 날짜는 반드시 명시한다. "다음 주" 가 아니라 "9월 15일 월요일"
+- 검색 요약만 보고 사실로 확정하지 않는다. fetch_article 로 원문을 열어 대조한다
+- 확인된 사실 / 발표자 주장 / 미확인 을 구분한다. 미확인을 사실처럼 쓰지 않는다
+- 되돌리기 어려운 일(발송)은 반드시 사람의 승인을 받는다
+
+행동 방식
+- 매번 지금까지의 관찰을 보고 다음 행동 하나를 고른다
+- 도구를 부르거나, ask_human 으로 사람에게 묻거나, finish_step 으로 단계를 끝낸다
+- 추측으로 메우지 말고, 모르면 사람에게 묻는다
+"""
+
+
+class Stopped(Exception):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+def _elapsed(run: state.Run) -> float:
+    started = datetime.strptime(run.started_at, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - started).total_seconds()
+
+
+class AgentLoop:
+    def __init__(self, run_id: str) -> None:
+        self.run_id = run_id
+        self.settings = get_settings()
+
+    # ── 종료 조건 ───────────────────────────────────────────
+    def _check_limits(self, run: state.Run) -> None:
+        s = self.settings
+        if run.loop_count >= s.max_loop_iterations:
+            raise Stopped(f"전체 반복 상한 {s.max_loop_iterations}회 도달")
+        secs = _elapsed(run)
+        if secs > s.max_run_seconds:
+            raise Stopped(f"전체 실행 시간 상한 {s.max_run_seconds}초 초과 ({int(secs)}초)")
+
+    # ── 모델에게 줄 재료 ────────────────────────────────────
+    def _context(self, run: state.Run, phase: dict) -> list[Message]:
+        obs = state.observations(self.run_id)
+        answered = state.answers_of(self.run_id)
+
+        lines = [f"주제: {run.topic}", f"대상 지역: {run.region or '지정 없음'}",
+                 f"현재 단계: {phase['no']}. {phase['name']}",
+                 f"이 단계의 목표: {phase['goal']}"]
+
+        if answered:
+            lines.append("\n사람이 답한 것:")
+            for a in answered:
+                lines.append(f"  - {a['question']} → {a['answer']}")
+
+        if obs:
+            lines.append("\n지금까지의 관찰(도구 호출 결과):")
+            for o in obs:
+                mark = "성공" if o["ok"] else f"실패({o['error_label'] or '?'})"
+                lines.append(f"  - [{o['tool_name']}] {mark} {o['duration_ms']}ms :: "
+                             f"{(o['output_summary'] or '')[:300]}")
+        else:
+            lines.append("\n아직 도구를 부른 적이 없다.")
+
+        if phase["gate"]:
+            lines.append(
+                "\n이 단계는 사람이 결정해야 하는 단계다. "
+                "아직 묻지 않았다면 ask_human 을 호출해 물어라. "
+                "이미 답을 받았다면 그 답을 반영하고 finish_step 으로 넘어가라."
+            )
+
+        return [Message(role="system", content=SYSTEM),
+                Message(role="user", content="\n".join(lines))]
+
+    def _tools(self, phase: dict) -> list[ToolSpec]:
+        return [*registry.specs(phase["tools"]), ASK_HUMAN, FINISH_STEP]
+
+    # ── 한 번의 반복 ────────────────────────────────────────
+    async def tick(self) -> dict:
+        """한 바퀴 돈다. 무엇을 했는지 돌려준다."""
+        run = state.get_run(self.run_id)
+        if run is None:
+            raise Stopped("실행을 찾을 수 없다")
+        if run.status == "waiting_for_user":
+            return {"action": "waiting", "question": state.open_question(self.run_id)}
+
+        self._check_limits(run)
+
+        step = state.current_step(self.run_id)
+        if step is None:
+            state.set_status(self.run_id, "done")
+            return {"action": "done"}
+
+        phase = state.PHASE_BY_NO[step["step_no"]]
+        state.start_step(self.run_id, phase["no"])
+        state.bump_loop(self.run_id)
+
+        adapter = get_adapter(run_id=self.run_id)
+        try:
+            result = await adapter.chat(self._context(run, phase), tools=self._tools(phase))
+        except BudgetExceeded as exc:
+            raise Stopped(f"비용·호출 상한: {exc}") from exc
+
+        if not result.tool_calls:
+            # 아무 행동도 안 고른 경우. 재시도 상한을 세어 무한 루프를 막는다.
+            tries = state.bump_retry(self.run_id, phase["no"])
+            log_call(self.run_id, phase["no"], "판단", "행동을 고르지 못함", {},
+                     ToolResult(ok=False, summary=(result.text or "")[:300],
+                                error_label=Failure.GAVE_UP))
+            if tries > self.settings.max_retry_per_step:
+                raise Stopped(f"{phase['name']} 단계에서 재시도 {tries}회 — 사람에게 넘긴다")
+            return {"action": "retry", "step": phase["name"], "tries": tries}
+
+        call = result.tool_calls[0]
+
+        if call.name == ASK_HUMAN.name:
+            args = call.arguments
+            payload = {"question": args.get("question", "어떻게 할까요?"),
+                       "options": args.get("options", []),
+                       "multi_select": bool(args.get("multi_select", False)),
+                       "step_no": phase["no"]}
+            version = state.ask(self.run_id, args.get("question_id", f"step{phase['no']}"), payload)
+            log_call(self.run_id, phase["no"], "ask_human", "사람에게 질문", args,
+                     ToolResult(ok=True, summary=f"질문: {payload['question']}"))
+            return {"action": "ask", "question": {**payload, "version": version}}
+
+        if call.name == FINISH_STEP.name:
+            summary = call.arguments.get("summary", "")
+            state.finish_step(self.run_id, phase["no"])
+            log_call(self.run_id, phase["no"], "finish_step", "단계 종료 판단",
+                     call.arguments, ToolResult(ok=True, summary=summary))
+            return {"action": "finish_step", "step": phase["name"], "summary": summary}
+
+        tool = registry.get(call.name)
+        if tool is None:
+            log_call(self.run_id, phase["no"], call.name, "없는 도구를 부름", call.arguments,
+                     ToolResult(ok=False, summary=f"등록되지 않은 도구: {call.name}",
+                                error_label=Failure.TOOL_ERROR))
+            return {"action": "unknown_tool", "name": call.name}
+
+        args = dict(call.arguments)
+        if tool.name == "compose_cards":
+            args.setdefault("run_id", self.run_id)
+
+        res = await run_tool(tool, args, run_id=self.run_id, step_no=phase["no"],
+                             reason=(result.text or "").strip()[:200] or "다음 행동으로 선택")
+
+        if not res.ok and tool.on_fail is OnFail.ASK_HUMAN:
+            payload = {"question": f"{tool.name} 이(가) 실패했습니다. 어떻게 할까요?",
+                       "options": ["기간을 30일로 넓혀 다시 찾기", "검색어를 바꿔 다시 찾기",
+                                   "이 단계를 건너뛰기"],
+                       "multi_select": False, "step_no": phase["no"]}
+            state.ask(self.run_id, f"recover-{tool.name}", payload)
+            return {"action": "ask", "question": payload}
+
+        if not res.ok:
+            tries = state.bump_retry(self.run_id, phase["no"])
+            if tries > self.settings.max_retry_per_step:
+                raise Stopped(f"{phase['name']} 단계 재시도 {tries}회 초과")
+
+        return {"action": "tool", "name": tool.name, "ok": res.ok,
+                "summary": res.summary, "ms": res.duration_ms}
+
+    # ── 막힐 때까지 돌린다 ──────────────────────────────────
+    async def run_until_blocked(self, max_ticks: int = 30) -> dict:
+        """사람에게 물어야 하거나, 끝나거나, 상한에 걸릴 때까지 반복한다."""
+        t0 = time.perf_counter()
+        history: list[dict] = []
+        for _ in range(max_ticks):
+            try:
+                out = await self.tick()
+            except Stopped as stop:
+                state.set_status(self.run_id, "stopped", stop.reason)
+                history.append({"action": "stopped", "reason": stop.reason})
+                break
+            history.append(out)
+            if out["action"] in ("ask", "waiting", "done"):
+                break
+        return {"run_id": self.run_id, "ticks": len(history),
+                "seconds": round(time.perf_counter() - t0, 1), "history": history}
