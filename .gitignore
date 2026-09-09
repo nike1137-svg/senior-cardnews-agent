@@ -1,0 +1,27 @@
+# 비밀정보 — 절대 커밋 금지
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials*.json
+
+# 파이썬
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 노드
+node_modules/
+
+# 실행 산출물
+output/
+*.log
+
+# OS / 에디터
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
