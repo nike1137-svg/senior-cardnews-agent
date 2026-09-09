@@ -42,6 +42,37 @@ gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-vis
 
 ---
 
+## 🔴 제출 직전 체크리스트 (순서대로)
+
+구현은 끝났다. 남은 건 **제출 절차뿐**이다. 하나라도 빠지면 채점이 안 된다.
+
+- [ ] **1. 터널 켜기** — 채점자가 접속하려면 살아 있어야 한다
+
+  ```bash
+  cloudflared --config deploy/cloudflared.yml tunnel run cardnews
+  ```
+  같은 창에서 앱도 떠 있어야 한다: `uv run uvicorn app.main:app --port 8765`
+  확인: <https://cardnews.dodami-ai.com/healthz> 가 `status: ok`
+
+- [ ] **2. 저장소 공개 전환** — 지금 PRIVATE 이라 채점자가 못 본다
+
+  ```bash
+  gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-visibility-change-consequences
+  ```
+  공개 전 점검은 2026-09-09에 통과함 (`.env`·키·LMS 자료 이력에 없음).
+  그 뒤 커밋을 더 했다면 다시 확인할 것.
+
+- [ ] **3. 구글폼 제출** — <https://forms.gle/ZHdKgApqf79YswNKA>
+  - GitHub 저장소 URL: `https://github.com/nike1137-svg/senior-cardnews-agent`
+
+### 알아둘 것
+
+- 앱에 **인증이 없다.** 주소를 아는 사람이 실행을 걸면 Gemini 무료 한도
+  (모델당 하루 20회)를 소진시킬 수 있다. 채점 기간에만 켜두는 편이 안전하다
+- LINE 발송은 dry-run 고정이라 채점자가 눌러도 실제로 나가지 않는다
+
+---
+
 ## 문서 지도 — 어디에 뭐가 있나
 
 | 파일 | 내용 | 우선순위 |
