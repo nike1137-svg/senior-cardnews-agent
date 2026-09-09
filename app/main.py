@@ -6,9 +6,10 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.agent import runner
 from app.config import get_settings
 from app.db import init_db
-from app.routes import pages
+from app.routes import api, pages
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -17,9 +18,9 @@ BASE_DIR = Path(__file__).resolve().parent
 async def lifespan(app: FastAPI):
     get_settings().ensure_dirs()
     init_db()
-    # TODO(4단계): status='running' 인 실행을 찾아 중단 지점부터 재개한다.
-    #   asyncio 백그라운드 태스크는 프로세스가 죽으면 유실되지만,
-    #   상태 정본이 SQLite 에 있으므로 기동 시 이어갈 수 있다 (D-012).
+    # 재시작 복구 — 백그라운드 태스크는 프로세스가 죽으면 유실되지만
+    # 상태 정본이 SQLite 에 있으므로 기동 시 이어갈 수 있다 (D-012, 루브릭 3번).
+    await runner.recover()
     yield
 
 
@@ -30,3 +31,4 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(pages.router)
+app.include_router(api.router)

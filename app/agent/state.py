@@ -229,6 +229,45 @@ def answers_of(run_id: str) -> list[dict]:
     return out
 
 
+def usage_of(run_id: str) -> dict:
+    """이 실행이 쓴 토큰·비용·시간. 화면 하단과 대시보드가 쓴다."""
+    with closing(connect()) as conn:
+        u = conn.execute(
+            "SELECT COUNT(*) AS calls, COALESCE(SUM(prompt_tokens),0) AS pin, "
+            "COALESCE(SUM(completion_tokens),0) AS pout, COALESCE(SUM(usd),0) AS usd "
+            "FROM llm_usage WHERE run_id = ?", (run_id,)).fetchone()
+        t = conn.execute(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(duration_ms),0) AS ms, "
+            "COALESCE(SUM(CASE WHEN ok=0 THEN 1 ELSE 0 END),0) AS fails "
+            "FROM tool_calls WHERE run_id = ?", (run_id,)).fetchone()
+    return {"llm_calls": u["calls"], "prompt_tokens": u["pin"],
+            "completion_tokens": u["pout"], "usd": round(float(u["usd"]), 6),
+            "tool_calls": t["n"], "tool_ms": t["ms"], "tool_fails": t["fails"]}
+
+
+def step_timing(run_id: str) -> list[dict]:
+    """단계별 소요시간·도구 호출 수. '어느 단계가 병목인지' 를 보려면 이게 필요하다."""
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "SELECT s.step_no, s.name, s.status, s.retry_count, "
+            "  COALESCE(SUM(t.duration_ms), 0) AS tool_ms, COUNT(t.id) AS calls "
+            "FROM steps s LEFT JOIN tool_calls t "
+            "  ON t.run_id = s.run_id AND t.step_no = s.step_no "
+            "WHERE s.run_id = ? GROUP BY s.step_no ORDER BY s.step_no", (run_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def logs_after(run_id: str, after_id: int = 0, limit: int = 200) -> list[dict]:
+    """실행 로그를 id 이후로 가져온다. 화면 패널이 이어받는 근거."""
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "SELECT id, step_no, tool_name, reason, output_summary, ok, error_label, "
+            "duration_ms, created_at FROM tool_calls "
+            "WHERE run_id = ? AND id > ? ORDER BY id LIMIT ?",
+            (run_id, after_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def observations(run_id: str, limit: int = 40) -> list[dict]:
     """지금까지의 도구 호출 결과. 루프가 '관찰'로 삼는 재료."""
     with closing(connect()) as conn:

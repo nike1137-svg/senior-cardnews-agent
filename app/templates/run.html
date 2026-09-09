@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if fault_banner %}
+<p class="banner warn">⚠ {{ fault_banner }}</p>
+{% endif %}
+{% if stale %}
+<p class="banner">지난 질문입니다. 새 작업을 시작하지 않았습니다.</p>
+{% endif %}
+
+<section class="card">
+  <div class="runhead">
+    <div>
+      <h1>{{ run.topic }}</h1>
+      <p class="lead">{{ run.region or "지역 지정 없음" }} · {{ run.provider }} / {{ run.model }}</p>
+    </div>
+    <span class="badge s-{{ run.status }}">
+      {% if run.status == "running" %}진행 중
+      {% elif run.status == "waiting_for_user" %}답변 대기
+      {% elif run.status == "done" %}완료
+      {% elif run.status == "stopped" %}중단됨
+      {% elif run.status == "failed" %}실패
+      {% else %}{{ run.status }}{% endif %}
+    </span>
+  </div>
+
+  {% if run.stop_reason %}
+  <p class="note">중단 사유: {{ run.stop_reason }}</p>
+  <form method="post" action="/runs/{{ run.run_id }}/resume">
+    <button class="small" type="submit">이어서 진행</button>
+  </form>
+  {% endif %}
+
+  <ol class="stepbar">
+    {% for s in steps %}
+    <li class="st-{{ s.status }}">
+      <span class="n">{{ s.step_no }}</span>
+      <span class="nm">{{ s.name }}</span>
+      {% if s.calls %}<span class="ms">{{ s.calls }}회 · {{ (s.tool_ms / 1000) | round(1) }}초</span>{% endif %}
+      {% if s.retry_count %}<span class="rt">재시도 {{ s.retry_count }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+
+{% if question %}
+<section class="card ask">
+  <h2>여쭤봅니다</h2>
+  <p class="q">{{ question.question }}</p>
+  <form method="post" action="/runs/{{ run.run_id }}/answer">
+    <input type="hidden" name="question_id" value="{{ question.question_id }}">
+    <input type="hidden" name="version" value="{{ question.version }}">
+    {% for opt in question.options %}
+    <label class="opt">
+      <input type="{{ 'checkbox' if question.multi_select else 'radio' }}"
+             name="answer" value="{{ opt }}" {% if loop.first and not question.multi_select %}checked{% endif %}>
+      <span>{{ opt }}</span>
+    </label>
+    {% endfor %}
+    <label class="opt free">
+      <span class="lbl">직접 입력</span>
+      <input type="text" name="free_text" placeholder="선택지에 없으면 여기에 적어주세요" autocomplete="off">
+    </label>
+    <button type="submit">답변하고 계속하기</button>
+  </form>
+</section>
+{% endif %}
+
+{% if answers %}
+<section class="card subtle">
+  <h2>지금까지 답한 것</h2>
+  <ul class="answers">
+    {% for a in answers %}<li><b>{{ a.question }}</b> → {{ a.answer }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="card">
+  <div class="runhead">
+    <h2>실행 로그</h2>
+    <span class="muted" id="conn">연결 중…</span>
+  </div>
+  <p class="lead">도구 이름 · 부른 이유 · 결과 · 걸린 시간</p>
+  <ul class="log" id="log">
+    {% for l in logs %}
+    <li class="{{ 'ok' if l.ok else 'ng' }}">
+      <span class="t">{{ l.created_at[11:19] }}</span>
+      <span class="tool">{{ l.tool_name }}</span>
+      <span class="ms">{{ l.duration_ms }}ms</span>
+      <span class="why">{{ l.reason }}</span>
+      <span class="sum">{{ l.output_summary }}</span>
+      {% if l.error_label %}<span class="lb">{{ l.error_label }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card subtle">
+  <h2>이번 실행이 쓴 것</h2>
+  <table class="usage" id="usage">
+    <tr><th>LLM 호출</th><td id="u-calls">{{ usage.llm_calls }}</td>
+        <th>토큰</th><td id="u-tok">{{ usage.prompt_tokens }} / {{ usage.completion_tokens }}</td></tr>
+    <tr><th>비용</th><td id="u-usd">${{ '%.4f' % usage.usd }}</td>
+        <th>도구 호출</th><td id="u-tools">{{ usage.tool_calls }}회 (실패 {{ usage.tool_fails }})</td></tr>
+    <tr><th>도구 소요</th><td id="u-ms">{{ (usage.tool_ms / 1000) | round(1) }}초</td>
+        <th>루프 반복</th><td id="u-loop">{{ run.loop_count }}</td></tr>
+  </table>
+</section>
+
+<script>
+(function () {
+  const RUN_ID = {{ run.run_id | tojson }};
+  const INITIAL = {{ run.status | tojson }};
+  const list = document.getElementById('log');
+  const conn = document.getElementById('conn');
+  let lastId = {{ (logs | map(attribute='id') | max) if logs else 0 }};
+
+  function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+  function append(d) {
+    const li = document.createElement('li');
+    li.className = d.ok ? 'ok' : 'ng';
+    li.innerHTML =
+      '<span class="t">' + esc(d.at) + '</span>' +
+      '<span class="tool">' + esc(d.tool) + '</span>' +
+      '<span class="ms">' + d.ms + 'ms</span>' +
+      '<span class="why">' + esc(d.reason) + '</span>' +
+      '<span class="sum">' + esc(d.summary) + '</span>' +
+      (d.label ? '<span class="lb">' + esc(d.label) + '</span>' : '');
+    list.appendChild(li);
+    li.scrollIntoView({ block: 'nearest' });
+  }
+
+  const es = new EventSource('/runs/' + RUN_ID + '/events?after=' + lastId);
+  let closedOnPurpose = false;
+
+  es.onopen = function () { conn.textContent = '실시간 연결됨'; };
+  es.onerror = function () {
+    if (!closedOnPurpose) conn.textContent = '연결 끊김';
+  };
+
+  es.addEventListener('log', function (e) {
+    const d = JSON.parse(e.data);
+    if (d.id <= lastId) return;
+    lastId = d.id;
+    append(d);
+  });
+
+  es.addEventListener('status', function (e) {
+    const d = JSON.parse(e.data);
+    const u = d.usage;
+    document.getElementById('u-calls').textContent = u.llm_calls;
+    document.getElementById('u-tok').textContent = u.prompt_tokens + ' / ' + u.completion_tokens;
+    document.getElementById('u-usd').textContent = '$' + u.usd.toFixed(4);
+    document.getElementById('u-tools').textContent = u.tool_calls + '회 (실패 ' + u.tool_fails + ')';
+    document.getElementById('u-ms').textContent = (u.tool_ms / 1000).toFixed(1) + '초';
+    document.getElementById('u-loop').textContent = d.loop_count;
+
+    // 처음 열었을 때와 상태가 달라졌을 때만 새로고침한다.
+    // 그냥 새로고침하면 대기 화면에서 무한 반복된다.
+    if (d.status !== INITIAL) {
+      conn.textContent = '상태 변경 — 새로고침';
+      closedOnPurpose = true;
+      es.close();
+      setTimeout(function () { location.reload(); }, 500);
+      return;
+    }
+
+    // 대기·종료 상태에서는 서버가 스트림을 정상 종료한다. 오류가 아니다.
+    if (d.status === 'waiting_for_user') {
+      conn.textContent = '답변을 기다리는 중';
+      closedOnPurpose = true; es.close();
+    } else if (d.status === 'done' || d.status === 'stopped' || d.status === 'failed') {
+      conn.textContent = '실행 종료 (' + d.status + ')';
+      closedOnPurpose = true; es.close();
+    }
+  });
+})();
+</script>
+{% endblock %}
