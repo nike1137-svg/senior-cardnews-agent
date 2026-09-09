@@ -85,12 +85,22 @@ async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repeat", type=int, default=1,
                     help="같은 세팅을 몇 번씩 돌릴지 (편차 확인용)")
+    ap.add_argument("--only", default="",
+                    help="이 제공자만 돌린다 (gemini | openai). "
+                         "이미 잰 쪽을 다시 돌려 무료 한도를 태우지 않으려고 둔다")
     args = ap.parse_args()
 
     init_db()
     await mcp_bridge.discover()
 
-    targets = _available(SETTINGS)
+    wanted = SETTINGS
+    if args.only:
+        wanted = [(p, m) for p, m in SETTINGS if p == args.only]
+        if not wanted:
+            print(f"'{args.only}' 에 해당하는 세팅이 없다. "
+                  f"있는 것: {sorted({p for p, _ in SETTINGS})}")
+            return
+    targets = _available(wanted)
     if not targets:
         print("돌릴 세팅이 없다. 키를 먼저 넣어라.")
         return
