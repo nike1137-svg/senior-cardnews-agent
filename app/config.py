@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     # ── 두뇌 LLM (D-010) ────────────────────────────────────
     llm_provider: str = "gemini"          # gemini | openai
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    # 2.5-flash 는 신규 사용자에게 차단됐다 (2026-09-09 확인). D-014 참조.
+    gemini_model: str = "gemini-3.6-flash"
+    gemini_image_model: str = "gemini-3.1-flash-image"
     openai_api_key: str = ""
     openai_model: str = "gpt-5-mini"
 

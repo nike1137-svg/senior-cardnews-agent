@@ -10,12 +10,13 @@ dependencies = [
     "pydantic-settings>=2.7",
     "httpx>=0.28",
     "python-multipart>=0.0.20",
+    "google-genai>=1.0",
+    "openai>=1.60",
+    "pillow>=11.0",
 ]
 
 # 단계별로 추가할 의존성 (지금 넣지 않는다)
-#   2단계 LLM 어댑터 : google-genai, openai
 #   3단계 도구       : tavily-python, trafilatura
-#   7단계 카드 합성  : pillow
 #   12단계 MCP 서버  : mcp
 
 [tool.uv]
