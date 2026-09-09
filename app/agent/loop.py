@@ -21,6 +21,12 @@ from app.config import get_settings
 from app.llm import Message, ToolSpec, get_adapter
 from app.llm.budget import BudgetExceeded
 from app.tools import registry, run_tool
+
+# 관찰 요약을 컨텍스트에 실을 때의 길이 상한.
+# 전부 300 자로 자르면 web_search 의 링크가 통째로 사라진다. 그러면 모델은
+# URL 을 본 적이 없게 되고, 다음 단계에서 원문을 열 수가 없다.
+OBS_CAP = {"web_search": 1500, "fetch_article": 900}
+OBS_CAP_DEFAULT = 300
 from app.tools.base import Failure, OnFail, log_call, ToolResult
 
 # ── 루프 제어용 도구 ────────────────────────────────────────
@@ -124,8 +130,9 @@ class AgentLoop:
             lines.append("\n지금까지의 관찰(도구 호출 결과):")
             for o in obs:
                 mark = "성공" if o["ok"] else f"실패({o['error_label'] or '?'})"
+                cap = OBS_CAP.get(o["tool_name"], OBS_CAP_DEFAULT)
                 lines.append(f"  - [{o['tool_name']}] {mark} {o['duration_ms']}ms :: "
-                             f"{(o['output_summary'] or '')[:300]}")
+                             f"{(o['output_summary'] or '')[:cap]}")
 
             # 같은 도구를 몇 번 불렀는지 알려준다.
             # 이걸 안 주면 모델이 검색어만 바꿔 가며 계속 검색한다 (실제로 12회 반복했다).

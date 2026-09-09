@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+from email.utils import parsedate_to_datetime
 
 from app.config import get_settings
 from app.tools import faults
@@ -41,6 +42,24 @@ DESCRIPTION = (
 )
 
 
+def _day(raw: str) -> str:
+    """게시일을 YYYY-MM-DD 로 맞춘다.
+
+    Tavily 는 RFC-2822("Wed, 02 Sep 2026 07:00:00 GMT")를 주기도 하고 ISO 를 주기도 한다.
+    앞 10 자를 그냥 자르면 "Wed, 02 Se" 같은 쓰레기가 된다.
+    날짜 대조는 이 과제가 반복해서 경고한 함정이라 표기를 흐리면 안 된다.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return "날짜없음"
+    if "," in raw[:5]:
+        try:
+            return parsedate_to_datetime(raw).date().isoformat()
+        except Exception:
+            pass
+    return raw[:10]
+
+
 async def _search(query: str, days: int = 7, max_results: int = 10) -> ToolResult:
     if faults.should_fail("search_empty"):
         return ToolResult(ok=False, summary="[주입된 실패] 검색 결과 0건",
@@ -73,10 +92,19 @@ async def _search(query: str, days: int = 7, max_results: int = 10) -> ToolResul
         return ToolResult(ok=False, summary=f"'{query}' 검색 결과 0건 (최근 {days}일)",
                           error_label=Failure.SEARCH_EMPTY)
 
+    # 제목·링크·게시일을 요약에 함께 싣는다.
+    # data 는 저장되지 않으므로(log_call 은 summary 만 남긴다), 여기 없으면
+    # 다음 반복에서 모델은 URL 을 볼 수 없다. 그래서 fetch_article 로 원문을
+    # 열 수도, 카드에 출처를 실을 수도 없었다.
+    lines = [f"검색어='{query}' 최근 {days}일 → {len(items)}건"]
+    for i, it in enumerate(items[:8], 1):
+        day = _day(it["published"])
+        lines.append(f'{i}. {it["title"]} ({day}) {it["url"]}')
+
     return ToolResult(
         ok=True,
         data=items,
-        summary=f"검색어='{query}' 최근 {days}일 → {len(items)}건",
+        summary="\n".join(lines),
     )
 
 
