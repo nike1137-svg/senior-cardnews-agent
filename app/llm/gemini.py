@@ -7,10 +7,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from app.config import get_settings
 from app.llm.base import LLMResult, Message, ToolCall, ToolSpec, Usage
-from app.llm.budget import BudgetGuard
+from app.llm.budget import BudgetExceeded, BudgetGuard
 from app.llm.redact import redact
+
+log = logging.getLogger("llm.gemini")
 
 
 class GeminiAdapter:
@@ -74,6 +78,22 @@ class GeminiAdapter:
         return types.GenerateContentConfig(**kwargs) if kwargs else None
 
     # ── 호출 ────────────────────────────────────────────────
+    def _candidates(self) -> list[str]:
+        """기본 모델 → 폴백 모델 순서. 중복은 뺀다."""
+        s = get_settings()
+        extra = [m.strip() for m in (s.gemini_fallback_models or "").split(",") if m.strip()]
+        out, seen = [], set()
+        for m in [self.model, *extra]:
+            if m and m not in seen:
+                seen.add(m)
+                out.append(m)
+        return out
+
+    @staticmethod
+    def _is_quota_error(exc: Exception) -> bool:
+        s = str(exc)
+        return "429" in s or "RESOURCE_EXHAUSTED" in s
+
     async def chat(
         self,
         messages: list[Message],
@@ -81,11 +101,31 @@ class GeminiAdapter:
     ) -> LLMResult:
         self.budget.check()
 
-        resp = await self._client.aio.models.generate_content(
-            model=self.model,
-            contents=self._to_contents(messages),
-            config=self._to_config(messages, tools),
-        )
+        contents = self._to_contents(messages)
+        config = self._to_config(messages, tools)
+
+        # 무료 티어는 모델마다 하루 한도가 따로다. 하나가 막히면 다음으로 갈아탄다.
+        resp, used, tried = None, None, []
+        for model in self._candidates():
+            try:
+                resp = await self._client.aio.models.generate_content(
+                    model=model, contents=contents, config=config)
+                used = model
+                break
+            except Exception as exc:  # noqa: BLE001
+                if not self._is_quota_error(exc):
+                    raise
+                tried.append(model)
+                log.warning("%s 일일 한도 소진 — 다음 모델로 갈아탑니다", model)
+
+        if resp is None:
+            raise BudgetExceeded(
+                "무료 티어 일일 한도 소진",
+                f"시도한 모델: {', '.join(tried)}. 내일 초기화되거나 다른 키가 필요합니다",
+            )
+
+        if used != self.model:
+            log.info("모델 대체: %s -> %s", self.model, used)
 
         calls: list[ToolCall] = []
         for fc in getattr(resp, "function_calls", None) or []:
@@ -112,13 +152,14 @@ class GeminiAdapter:
             prompt_tokens=getattr(meta, "prompt_token_count", 0) or 0,
             completion_tokens=getattr(meta, "candidates_token_count", 0) or 0,
         )
-        usd = self.budget.record(self.provider, self.model, usage)
+        # 실제로 응답한 모델로 기록한다. 대체됐는데 원래 모델로 남기면 평가표가 틀어진다.
+        usd = self.budget.record(self.provider, used, usage)
 
         return LLMResult(
             text=text,
             tool_calls=calls,
             usage=usage,
             provider=self.provider,
-            model=self.model,
+            model=used,
             usd=usd,
         )

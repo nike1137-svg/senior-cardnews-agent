@@ -174,6 +174,9 @@ class AgentLoop:
             result = await adapter.chat(self._context(run, phase), tools=self._tools(phase))
         except BudgetExceeded as exc:
             raise Stopped(f"비용·호출 상한: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001
+            # 예외로 죽지 않고 '중단'으로 남긴다. 진행분이 보존되고 사람이 다시 이어갈 수 있다.
+            raise Stopped(f"LLM 호출 실패: {type(exc).__name__} — {str(exc)[:180]}") from exc
 
         if not result.tool_calls:
             # 아무 행동도 안 고른 경우. 재시도 상한을 세어 무한 루프를 막는다.

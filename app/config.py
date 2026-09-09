@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"          # gemini | openai
     gemini_api_key: str = ""
     # 2.5-flash 는 신규 사용자에게 차단됐다 (2026-09-09 확인). D-014 참조.
-    gemini_model: str = "gemini-3.6-flash"
+    # 무료 티어는 **모델마다 하루 20회** 정도로 묶여 있다 (실측).
+    # 한 모델이 429 를 내면 아래 순서대로 갈아탄다. 모델마다 한도가 따로라 총량이 늘어난다.
+    gemini_model: str = "gemini-3.5-flash"
+    gemini_fallback_models: str = (
+        "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3-flash-preview,gemini-3.6-flash"
+    )
     gemini_image_model: str = "gemini-3.1-flash-image"
     openai_api_key: str = ""
     openai_model: str = "gpt-5-mini"
@@ -42,6 +47,7 @@ class Settings(BaseSettings):
     max_run_seconds: int = 600
     max_image_calls: int = 8
     max_llm_calls_per_run: int = 40
+    # 실제 무료 한도(모델당 하루 20회)보다 넉넉히 두고, 429 는 모델 교체로 대응한다.
     max_llm_calls_per_day: int = 300
     max_usd_per_run: float = 0.30
     max_usd_total: float = 3.00
