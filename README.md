@@ -63,7 +63,9 @@ cloudflared --config deploy/cloudflared.yml tunnel run cardnews
 > ⚠️ `cloudflared tunnel route dns` 를 `--config` 없이 부르면 **기본 설정의 다른 터널**로
 > CNAME 이 걸린다. 실제로 한 번 그렇게 됐다. 반드시 `--config` 를 붙일 것.
 
-![배포된 화면](docs/screenshots/08-deploy.png)
+공개 주소: **<https://cardnews.dodami-ai.com>**
+
+![배포된 화면 — 주소창 포함](docs/screenshots/08-deploy-browser.png)
 
 ### 수용 기준과 재확인
 
