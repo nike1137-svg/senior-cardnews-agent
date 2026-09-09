@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import sys
 from collections import Counter
+from statistics import mean
 from pathlib import Path
 
 # 한국어 윈도우 콘솔은 기본이 cp949 라 '—' 같은 글자에서 UnicodeEncodeError 로 죽는다.
@@ -92,6 +93,49 @@ def runs_table(rows: list[dict]) -> str:
             f"| {seq[:80]} |"
         )
     return "\n".join(lines)
+
+
+def variance(rows: list[dict]) -> str:
+    """같은 세팅을 두 번 이상 잰 것만 모아 편차를 낸다.
+
+    한 번씩만 재면 모델 간 차이인지 그날의 운인지 구분할 수 없다.
+    LLM 은 같은 입력에도 다르게 답하므로, 반복 없이 비교하면 편차를 실력으로 착각한다.
+    """
+    # **설정한 세팅**(configured_model)으로 묶는다. 실제로 쓴 모델(model)로 묶으면
+    # 한도 소진으로 폴백된 실행이 다른 세팅에 섞여, 바꾼 적 없는 세팅이 비교에 끼어든다.
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for r in rows:
+        setting = r.get("configured_model") or r.get("model", "")
+        groups.setdefault((r.get("topic", ""), setting), []).append(r)
+
+    repeated = {k: v for k, v in groups.items() if len(v) >= 2}
+    if not repeated:
+        return "_같은 세팅을 두 번 이상 잰 실행이 아직 없다._"
+
+    by_topic: dict[str, list] = {}
+    for (topic, model), g in repeated.items():
+        by_topic.setdefault(topic, []).append((model, g))
+
+    blocks = []
+    for topic, items in by_topic.items():
+        lines = [f"**주제: {topic}**", "",
+                 "| 설정한 세팅 | n | 루프 평균 | 루프 폭 | 입력 토큰 평균 | 출력 토큰 평균 | 폴백 | 비용 |",
+                 "|---|---|---|---|---|---|---|---|"]
+        for model, g in sorted(items):
+            loops = [x.get("loop_count", 0) for x in g]
+            usd = sum(x.get("usd", 0) or 0 for x in g)
+            # 설정한 모델과 실제로 쓴 모델이 다른 실행 수. 무료 한도에 걸린 흔적이다.
+            fell = sum(1 for x in g
+                       if (x.get("configured_model") or x.get("model")) != x.get("model"))
+            lines.append(
+                f"| `{model}` | {len(g)} | {mean(loops):.1f} | {max(loops) - min(loops)} "
+                f"| {mean([x.get('prompt_tokens', 0) for x in g]):,.0f} "
+                f"| {mean([x.get('completion_tokens', 0) for x in g]):,.0f} "
+                f"| {f'{fell}/{len(g)}' if fell else '—'} "
+                f"| {'무료' if usd == 0 else f'${usd:.4f}'} |")
+        blocks.append("\n".join(lines))
+
+    return "\n\n".join(blocks)
 
 
 def controlled(rows: list[dict]) -> str:
@@ -192,24 +236,56 @@ def build(rows: list[dict]) -> str:
 **`fetch_article` 이 실제로 원문을 열고 게시일을 확인한 첫 실행이다.**
 그전까지는 검색 결과 요약만 보고 넘어갔다 — 이 과제가 반복해서 경고한 함정 그대로였다.
 
-## 2. 세팅 비교 — 같은 조건에서 모델만 바꿈
+## 2. 세팅 비교 — 제공자와 모델을 바꿔 가며
 
-`uv run python scripts/compare_settings.py` 로 만든다.
-같은 주제·지역으로 **모델만 바꿔** 첫 사람 개입 지점까지 돌린 결과다.
+```bash
+uv run python scripts/compare_settings.py --repeat 3          # 전부
+uv run python scripts/compare_settings.py --only openai --repeat 3
+```
+
+같은 주제·지역으로 **세팅만 바꿔** 첫 사람 개입 지점까지 돌린 결과다.
 끝까지 돌리지 않는 이유는 무료 한도(모델당 하루 20회, D-016) 때문이고,
 비교에 필요한 건 **같은 조건에서의 판단**이지 완주 여부가 아니다.
 
-{controlled(rows)}
+### 같은 세팅을 3회씩 쟀다
+
+한 번씩만 재면 **모델 간 차이인지 그날의 운인지 구분할 수 없다.**
+LLM 은 같은 입력에도 다르게 답한다.
+
+{variance(rows)}
 
 ### 무엇이 달랐나
 
-- **큰 모델이 도구를 더 쓴다.** `3.5-flash` 는 검색이 실패하기 전에 날씨를 먼저 확보했고,
-  lite 모델들은 바로 검색으로 가서 실패한 채 멈췄다.
-  같은 실패 상황에서 **회복 재료를 미리 모아둔 쪽이 더 멀리 간다**
-- **도구 선택 순서는 모델을 가리지 않았다.** 세 모델 모두 `list_past_publications` 를
-  **가장 먼저** 불렀다. 단계 목표에 "후보를 고르기 전에 과거 이력을 확인하라"고
-  적어둔 것이 모델 크기와 무관하게 작동했다
-- 토큰은 lite 가 약 35% 적다. 판단이 짧으면 도구도 덜 쓴다
+- 🔴 **`gemini-3.5-flash` 행은 비교로 쓸 수 없다.** 폴백 열을 보면 4회 중 3회가
+  한도 소진으로 **다른 모델로 갈아탔다.** 설정만 그 모델이었을 뿐 실제로는 lite 로 돌았다.
+  **"모델을 설정했다" 와 "그 모델로 돌았다" 는 다르다.**
+  폴백을 기록해두지 않았다면 이 표는 거짓말을 했을 것이다
+- 🔺 **이전 결론을 하나 거둬들인다.** 1회씩 쟀을 때는 *"큰 모델이 도구를 더 쓴다"* 고 적었는데,
+  반복해 보니 **lite 두 모델의 평균 차이가 각자의 편차 폭보다 작다.**
+  모델 차이라고 말할 수 없다. **반복 없이 비교하면 편차를 실력으로 착각한다**
+- **가장 일관된 것은 `gpt-5-mini` 였다** (폭 1). Gemini lite 계열은 폭 2~5 로 흔들렸다.
+  운영에서는 평균보다 이 폭이 더 중요할 수 있다 — 매번 다르게 도는 것을 예측할 수 없다
+- **제공자 간 차이가 모델 간 차이보다 컸다.** `gpt-5-mini` 는 출력 토큰이
+  Gemini 계열의 8~10배다(3,300~4,000 vs 250~450). 추론 토큰을 쓰기 때문이다.
+  반대로 입력 토큰은 적다 — 루프를 덜 돌아서다.
+  **"토큰이 많다/적다" 는 제공자를 섞으면 같은 뜻이 아니다**
+- **도구 선택 순서는 제공자를 가리지 않았다.** Gemini 3종과 OpenAI 모두
+  `list_past_publications` 를 **가장 먼저** 불렀다. 단계 목표에 도구 이름을 직접 적어둔 것이
+  제공자와 무관하게 작동했다 — D-022 에서 얻은 방법이다
+
+### 비용과 한도
+
+Gemini 는 무료 티어라 0원이고, OpenAI 는 기관 지급 크레딧 $5 에서 나간다.
+비용 열은 `llm_usage` 에 쌓인 실제 사용량으로 계산한 값이다.
+
+**공짜에는 값이 있다.** 무료 경로는 돈이 안 드는 대신 한도에 걸려
+**측정 자체가 오염됐다**(위 폴백 3/4). 유료 경로는 $0.03 으로 3회를 흔들림 없이 쟀다.
+무료를 기본으로 두는 판단(D-010)은 유지하되, **비교 실험만큼은 한도에 걸리지 않는 쪽으로
+재야 한다**는 것을 이번에 배웠다.
+
+### 실행별 원자료
+
+{controlled(rows)}
 
 ## 3. 전체 실행 기록
 
