@@ -81,3 +81,19 @@ CREATE TABLE IF NOT EXISTS llm_usage (
 );
 CREATE INDEX IF NOT EXISTS idx_llm_usage_run ON llm_usage(run_id);
 CREATE INDEX IF NOT EXISTS idx_llm_usage_day ON llm_usage(created_at);
+
+-- 발행 이력. 자체 MCP 서버가 읽고 쓰는 '운영 데이터'다.
+-- 에이전트가 "이 주제는 3주 전에 이미 다뤘다" 고 판단할 근거가 된다.
+-- record_publication 이 남긴 것이 다음 실행의 입력이 되어 사이클이 만들어진다.
+CREATE TABLE IF NOT EXISTS publications (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id       TEXT,
+    topic        TEXT NOT NULL,
+    section      TEXT,
+    region       TEXT,
+    card_count   INTEGER NOT NULL DEFAULT 0,
+    keywords     TEXT,                    -- 쉼표로 구분
+    published_at TEXT NOT NULL,
+    note         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pub_at ON publications(published_at);

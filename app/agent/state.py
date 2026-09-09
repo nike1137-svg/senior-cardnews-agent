@@ -20,8 +20,10 @@ from app.llm.budget import utc_now
 # 워크플로 단계 (PRD 3장). 사람이 개입하는 곳은 gate=True.
 PHASES: list[dict[str, Any]] = [
     {"no": 1, "name": "조사", "gate": False,
-     "goal": "주제에 맞는 최근 소식 후보를 7~12개 모은다. 날씨가 필요하면 함께 조회한다.",
-     "tools": ["web_search", "get_weather"]},
+     "goal": ("주제에 맞는 최근 소식 후보를 모은다. 날씨가 필요하면 함께 조회한다. "
+              "**후보를 고르기 전에 list_past_publications 로 과거 발행 이력을 확인해** "
+              "최근에 이미 다룬 주제는 후순위로 내린다."),
+     "tools": ["web_search", "get_weather", "list_past_publications"]},
     {"no": 2, "name": "후보 선택", "gate": True,
      "goal": "모은 후보 중 카드뉴스에 실을 소식을 사람이 1~3개 고른다.",
      "tools": []},
@@ -29,8 +31,10 @@ PHASES: list[dict[str, Any]] = [
      "goal": "고른 소식의 원문을 열어 날짜·수치를 대조한다. 확인된 사실 / 발표자 주장 / 미확인 으로 나눈다.",
      "tools": ["fetch_article", "get_weather"]},
     {"no": 4, "name": "스토리보드", "gate": True,
-     "goal": "카드 5장의 제목·본문·자세를 계획하고 사람의 승인을 받는다.",
-     "tools": []},
+     "goal": ("카드 5장의 제목·본문·자세를 계획하고 사람의 승인을 받는다. "
+              "계획을 세우기 전에 get_audience_profile 과 get_card_template 으로 "
+              "글쓰기 규칙과 카드 양식을 확인한다."),
+     "tools": ["get_audience_profile", "get_card_template"]},
     {"no": 5, "name": "카드 합성", "gate": False,
      "goal": "승인된 스토리보드로 카드 이미지를 만든다.",
      "tools": ["compose_cards"]},
@@ -38,8 +42,10 @@ PHASES: list[dict[str, Any]] = [
      "goal": "완성된 카드를 사람이 보고 승인하거나 수정을 지시한다.",
      "tools": []},
     {"no": 7, "name": "발송", "gate": True,
-     "goal": "사람이 발송을 승인하면 보낸다. 기본은 보내지 않는다.",
-     "tools": ["send_line"]},
+     "goal": ("사람이 발송을 승인하면 보낸다. 기본은 보내지 않는다(dry-run). "
+              "발송 처리 뒤에는 record_publication 으로 발행 이력을 남겨 "
+              "다음 실행이 같은 주제를 반복하지 않게 한다."),
+     "tools": ["send_line", "record_publication"]},
 ]
 
 PHASE_BY_NO = {p["no"]: p for p in PHASES}

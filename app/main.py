@@ -10,6 +10,7 @@ from app.agent import runner
 from app.config import get_settings
 from app.db import init_db
 from app.routes import api, pages
+from app.tools import mcp_bridge
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -20,6 +21,9 @@ async def lifespan(app: FastAPI):
     init_db()
     # 재시작 복구 — 백그라운드 태스크는 프로세스가 죽으면 유실되지만
     # 상태 정본이 SQLite 에 있으므로 기동 시 이어갈 수 있다 (D-012, 루브릭 3번).
+    # 자체 MCP 서버의 도구를 등록한다 (⭐확장3).
+    # 붙지 않아도 앱은 나머지 도구로 돌아간다.
+    await mcp_bridge.discover()
     await runner.recover()
     yield
 

@@ -15,6 +15,7 @@ dependencies = [
     "pillow>=11.0",
     "tavily-python>=0.5",
     "trafilatura>=2.0",
+    "mcp>=1.2",
 ]
 
 # 단계별로 추가할 의존성 (지금 넣지 않는다)
