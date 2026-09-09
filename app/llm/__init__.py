@@ -6,7 +6,7 @@
   pricing.py  모델별 단가표
   budget.py   호출 수·비용 상한. LLM 으로 가는 유일한 관문
   redact.py   프롬프트에 키가 섞이지 않게 거르는 필터 (9번 규칙)
-  gemini.py   Gemini 2.5 Flash  (기본, 무료)
+  gemini.py   gemini-3.5-flash  (기본, 무료. 한도에 걸리면 폴백 사슬로 갈아탄다)
   openai.py   GPT-5 mini        (비교·시연, 기관 크레딧 $5)
 """
 
