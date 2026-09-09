@@ -371,6 +371,43 @@ cloudflared --config deploy/cloudflared.yml tunnel run cardnews
 | 같은 노트북의 다른 서비스에 영향이 없다 | 그 서비스도 200 유지 |
 | 대표 시나리오에서 카드 5장이 만들어진다 | [EVAL.md](./EVAL.md) 참고 |
 
+## 자동 트리거 (n8n)
+
+사람이 시작하지 않아도 월요일 아침에 제작이 시작되게 붙였습니다.
+
+```
+월요일 06:00  →  POST /runs  →  조사까지 마치고 waiting_for_user 로 멈춤
+담당자 출근    →  화면에 뜬 질문에 답만 하면 이어짐
+```
+
+워크플로는 `deploy/n8n/mq4-cardnews-schedule.json` 에 있습니다. 임포트 절차와
+설계 메모는 [deploy/n8n/README.md](deploy/n8n/README.md) 에 적었습니다.
+
+**n8n 은 트리거만 담당하고 판단은 코드가 합니다.** 노드로 조사·작성 순서를 짜면
+그건 자동화이지 에이전트가 아닙니다.
+
+**앱은 수정하지 않았습니다.** `POST /runs` 가 이미 폼 데이터를 받으므로,
+화면에서 사람이 누르는 입구와 n8n 이 부르는 입구가 같습니다. 자동 경로용 API 를
+따로 만들면 두 경로가 갈라져 한쪽은 시험되지 않은 채 남습니다.
+
+### 실제로 걸렸는지 확인했습니다
+
+n8n 에서 수동 실행한 뒤 데이터베이스를 확인했습니다.
+**"응답이 왔다" 와 "제작이 시작됐다" 는 다르기 때문입니다.**
+
+```
+run-8c1ec54e1699   n8n 이 시작 (2026-09-09 16:28)
+  단계1  list_past_publications → get_weather → web_search ×3 → finish_step
+  단계2  ask_human  →  waiting_for_user      ← 사람을 기다리며 멈춤
+```
+
+주제와 지역이 워크플로 JSON 에 적어둔 값(`이번 주 시니어 건강·생활 정보` /
+`서울 노원구`)과 같습니다. 화면에서 누른 실행이 아니라 n8n 이 부른 실행이라는 근거입니다.
+
+`POST /runs` 는 `303` 으로 `/runs/<run_id>` 를 돌려줍니다. n8n 이 리다이렉트를
+따라가면 HTML 만 받아 **어느 실행이 시작됐는지 알 수 없습니다.** 그래서
+`followRedirects: false` 로 두고 Location 헤더에서 `run_id` 를 꺼내 기록에 남깁니다.
+
 ## 알려진 제약
 
 **Gemini 무료 한도가 모델당 하루 20회입니다.** 에이전트를 한 번 돌리면 LLM을 10회 넘게

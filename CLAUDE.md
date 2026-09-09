@@ -107,7 +107,8 @@ gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-vis
 - [x] 폰트 Pretendard 동봉 (OFL, 재배포 가능)
 - [x] 캡처 8종
 - [ ] **저장소 공개 전환** ← 제출 직전
-- [~] n8n 스케줄 트리거 ⭐확장4 — **워크플로 JSON 작성 완료** (`deploy/n8n/`), n8n 임포트만 남음
+- [x] **n8n 스케줄 트리거 ⭐확장4** — 학원 인스턴스(`n8n.vibemakers.kr`)에 임포트·수동 실행 완료.
+  `run-8c1ec54e1699` 이 n8n 에서 시작돼 조사 후 `waiting_for_user` 로 멈춘 것까지 DB 대조함
 - [ ] 카드 버전 롤백 ⭐확장6 (선택)
 
 ### 지표 (2026-09-10)
