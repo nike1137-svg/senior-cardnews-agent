@@ -18,7 +18,7 @@
 - 저장소: https://github.com/nike1137-svg/senior-cardnews-agent
 - 제출 폼: https://forms.gle/ZHdKgApqf79YswNKA
 - `PRD.md` 포함 ✅
-- ✅ **실제 결과물 캡처본 포함** — `docs/screenshots/` 8종, README에 삽입 완료
+- ✅ **실제 결과물 캡처본 포함** — `docs/screenshots/` **10장, 전부 README에 삽입 완료**
 
 ⚠️ **제출 항목에서 빠진 것과 채점에서 빠진 것은 다르다.**
 조건의 「배포」 항목과 평가 문항 5번은 그대로 *"접속 가능한 URL로 배포"* 를 묻는다.
@@ -91,12 +91,12 @@ gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-vis
 
 **구현은 사실상 끝났다. 남은 것은 제출 절차와 선택 항목뿐이다.**
 
-- [x] 기획 — `PRD.md` 11장 · `DECISIONS.md` D-001~020
+- [x] 기획 — `PRD.md` 11장 · `DECISIONS.md` **D-001~023**
 - [x] 저장소 정리 — LMS 자료를 이력에서 제거하고 `senior-cardnews-agent` 로 이관
 - [x] 프로젝트 뼈대 — FastAPI + SQLite(WAL), 테이블 6개
 - [x] LLM 어댑터 — 모델 폴백 사슬(429·503), 비용·호출 상한, 키 필터
 - [x] 도구 9종 — 스키마·설명·실패규칙·권한. **단계별 허용 목록을 코드로 강제**
-- [x] 에이전트 루프 — 상태 저장·재개·종료조건 4종
+- [x] 에이전트 루프 — 상태 저장·재개·**종료조건 7종** (재시도·반복·시간·이미지·반려·호출·비용)
 - [x] 화면 — 시작 / 진행(SSE 로그·질문 카드) / 실행 기록 / 결과물
 - [x] `trace.json` · `outcome.json` 내보내기 (병목 단계 자동 계산)
 - [x] 자체 MCP 서버 ⭐확장3 — 도구 4종, 앱에 연결됨
@@ -141,15 +141,13 @@ uv run python -c "from app.config import get_settings as g; s=g(); print({k: boo
 
 ### 2순위 — 남은 확장 (선택)
 
-🟢 **n8n 워크플로는 이미 만들어 커밋해뒀다** — `deploy/n8n/mq4-cardnews-schedule.json`.
-임포트 절차와 설계 메모는 `deploy/n8n/README.md` 에 있다. **앱은 수정하지 않았다.**
-개인계정 인스턴스에 올리기로 했고 분리 장치 4개를 규칙으로 뒀다 (D-021).
+**확장 3·4·5는 모두 끝났다** (MCP 서버 · n8n 자동 트리거 · 검토 에이전트).
+평가 5번이 이름으로 부른 셋이 3/3이다.
 
+n8n 은 **학원 인스턴스**(`n8n.vibemakers.kr`)에 올렸다 (D-021).
+🔴 워크플로가 **Published 상태면 월요일 06:00에 자동 실행**된다 — 한도를 아끼려면 Draft 로 내릴 것.
 
-남은 것은 **n8n 에 임포트하고 1회 수동 실행해 확인**하는 일뿐이다.
-월요일 06:00 → `POST /runs` → 조사 후 `waiting_for_user` 대기 → 담당자가 답만 하면 이어짐.
-
-**카드 버전 롤백 ⭐확장6** — 재생성 전 카드를 남겨두고 되돌리기. 값이 가장 낮다.
+**카드 버전 롤백 ⭐확장6** — 재생성 전 카드를 남겨두고 되돌리기. 값이 가장 낮다. 남은 유일한 확장.
 
 ### 3순위 — 알려진 약점 (여유가 있으면)
 
