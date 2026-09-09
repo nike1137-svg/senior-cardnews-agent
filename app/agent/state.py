@@ -238,6 +238,37 @@ def open_question(run_id: str) -> dict | None:
             **json.loads(r["payload_json"])}
 
 
+def gate_state(run_id: str, step_no: int) -> dict | None:
+    """이 단계에서 물은 질문의 상태. 없으면 None.
+
+    게이트는 **이 단계에서 물은 것**으로만 충족돼야 한다. 앞 단계에서 받은 답이
+    뒤 단계의 승인으로 쓰이면 사람 개입 지점이 조용히 건너뛰어진다 —
+    실제로 단계2(후보 선택)가 단계1 의 답변으로 건너뛰어졌다 (D-023).
+
+    질문의 단계 번호는 payload_json 안에 이미 들어 있어 스키마 변경이 필요 없다.
+    """
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            "SELECT question_id, version, payload_json, answer_json FROM questions "
+            "WHERE run_id=? ORDER BY id", (run_id,)).fetchall()
+    for r in reversed(rows):
+        try:
+            payload = json.loads(r["payload_json"])
+        except (ValueError, TypeError):
+            continue
+        if payload.get("step_no") != step_no:
+            continue
+        answered = r["answer_json"] is not None
+        return {
+            "question_id": r["question_id"],
+            "version": r["version"],
+            "question": payload.get("question", ""),
+            "answered": answered,
+            "answer": json.loads(r["answer_json"]) if answered else None,
+        }
+    return None
+
+
 class StaleAnswer(Exception):
     """지난 질문에 뒤늦게 온 답. 새 작업을 시작하지 않는다."""
 

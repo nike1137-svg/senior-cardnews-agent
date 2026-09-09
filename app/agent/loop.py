@@ -136,27 +136,45 @@ class AgentLoop:
 
             # 같은 도구를 몇 번 불렀는지 알려준다.
             # 이걸 안 주면 모델이 검색어만 바꿔 가며 계속 검색한다 (실제로 12회 반복했다).
+            #
+            # **단계 안에서만 센다.** 실행 전체로 세면 앞 단계에서 3회를 넘긴 기록이
+            # 뒤 단계까지 따라와, 엉뚱한 단계에서 "그만하고 finish_step 하라"는 경고가
+            # 뜬다. 심층 검증 단계가 원문을 열기도 전에 종료된 원인이었다 (D-023).
             counts: dict[str, int] = {}
             for o in obs:
-                counts[o["tool_name"]] = counts.get(o["tool_name"], 0) + 1
-            lines.append("")
-            lines.append("이번 실행에서 부른 횟수: "
-                         + ", ".join(f"{k} {v}회" for k, v in counts.items()))
-            over = [k for k, v in counts.items() if v >= 3]
-            if over:
-                lines.append(
-                    f"  경고: {', '.join(over)} 는 이미 3회 이상 불렀다. "
-                    "같은 도구를 더 부르지 말고 지금 있는 자료로 판단해 "
-                    "finish_step 으로 넘어가거나 ask_human 으로 사람에게 물어라.")
+                if o["step_no"] == phase["no"]:
+                    counts[o["tool_name"]] = counts.get(o["tool_name"], 0) + 1
+            if counts:
+                lines.append("")
+                lines.append("이 단계에서 부른 횟수: "
+                             + ", ".join(f"{k} {v}회" for k, v in counts.items()))
+                over = [k for k, v in counts.items() if v >= 3]
+                if over:
+                    lines.append(
+                        f"  경고: 이 단계에서 {', '.join(over)} 를 이미 3회 이상 불렀다. "
+                        "같은 도구를 더 부르지 말고 지금 있는 자료로 판단해 "
+                        "finish_step 으로 넘어가거나 ask_human 으로 사람에게 물어라.")
         else:
             lines.append("\n아직 도구를 부른 적이 없다.")
 
         if phase["gate"]:
-            lines.append(
-                "\n이 단계는 사람이 결정해야 하는 단계다. "
-                "아직 묻지 않았다면 ask_human 을 호출해 물어라. "
-                "이미 답을 받았다면 그 답을 반영하고 finish_step 으로 넘어가라."
-            )
+            # 앞 단계에서 받은 답을 이 단계의 승인으로 쓰면 개입 지점이 새어나간다.
+            # 그래서 "이 단계에서 물은 질문" 만 근거로 삼는다 (D-023).
+            g = state.gate_state(self.run_id, phase["no"])
+            if g is None:
+                lines.append(
+                    "\n이 단계는 사람이 결정해야 하는 단계다. "
+                    "**이 단계에서는 아직 아무것도 묻지 않았다.** "
+                    "다른 단계에서 받은 답은 이 단계의 승인으로 쓸 수 없다. "
+                    "먼저 ask_human 을 호출해 물어라. finish_step 을 부르지 마라.")
+            elif g["answered"]:
+                lines.append(
+                    f"\n이 단계에서 물은 것에 답을 받았다. "
+                    f"질문: {g['question']} → 답: {g['answer']} "
+                    "그 답을 반영하고 finish_step 으로 넘어가라.")
+            else:
+                lines.append(
+                    "\n이 단계의 질문에 아직 답이 오지 않았다. 사람을 기다려야 한다.")
 
         return [Message(role="system", content=SYSTEM),
                 Message(role="user", content="\n".join(lines))]
@@ -227,6 +245,26 @@ class AgentLoop:
             return {"action": "ask", "question": {**payload, "version": version}}
 
         if call.name == FINISH_STEP.name:
+            # 게이트는 **이 단계에서 사람이 답한 것**으로만 넘어갈 수 있다.
+            # 지시문으로만 막으면 앞 단계 답변을 근거로 그냥 종료한다 —
+            # 실제로 단계2(후보 선택)가 질문 없이 finish_step 만 하고 넘어갔다.
+            # 허용 도구를 코드로 강제한 것과 같은 이유다 (D-023).
+            if phase["gate"]:
+                g = state.gate_state(self.run_id, phase["no"])
+                if not (g and g["answered"]):
+                    tries = state.bump_retry(self.run_id, phase["no"])
+                    log_call(self.run_id, phase["no"], "finish_step",
+                             "사람 승인 없이 게이트를 넘으려 함", call.arguments,
+                             ToolResult(ok=False,
+                                        summary="이 단계는 사람의 승인이 필요하다. "
+                                                "ask_human 으로 먼저 물어라.",
+                                        error_label=Failure.TOOL_ERROR))
+                    if tries > self.settings.max_retry_per_step:
+                        raise Stopped(
+                            f"{phase['name']} 단계는 사람 승인이 필요한데 "
+                            f"승인 없이 종료를 {tries}회 시도했다 — 사람에게 넘긴다")
+                    return {"action": "gate_not_approved", "step": phase["name"]}
+
             summary = call.arguments.get("summary", "")
             state.finish_step(self.run_id, phase["no"])
             log_call(self.run_id, phase["no"], "finish_step", "단계 종료 판단",
