@@ -14,8 +14,15 @@
 **핵심: 카드뉴스를 만드는 게 아니라, 카드뉴스를 만들어주는 서비스를 만드는 것.**
 
 제출물은 딱 2개다.
-1. GitHub 저장소 URL (`PRD.md` 포함)
-2. **실제 접속 가능한 배포 URL**
+1. GitHub 저장소 URL (`PRD.md` 포함) — https://github.com/nike1137-svg/mainquest4-cardnews
+2. **실제 접속 가능한 배포 URL** — 아직 없음
+
+🔴 **저장소가 현재 PRIVATE이다.** 제출 전에 반드시 공개로 바꿔야 채점자가 볼 수 있다.
+공개 전환 전에 `.env`·키·토큰이 커밋 이력에 섞이지 않았는지 확인할 것.
+
+```bash
+gh repo edit nike1137-svg/mainquest4-cardnews --visibility public --accept-visibility-change-consequences
+```
 
 ---
 
