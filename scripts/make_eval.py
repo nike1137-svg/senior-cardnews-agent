@@ -16,6 +16,13 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+# 한국어 윈도우 콘솔은 기본이 cp949 라 '—' 같은 글자에서 UnicodeEncodeError 로 죽는다.
+# 표는 다 쓰고 마지막 안내 한 줄에서 죽으므로 알아채기도 어렵다.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, OSError):
+    pass
+
 BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE))
 
@@ -162,9 +169,28 @@ def build(rows: list[dict]) -> str:
 | 단계 밖 도구 호출 | 목록에 없는 도구도 이름만 대면 실행됨 | 단계별 허용 목록을 코드로 강제 |
 | 모델 한도·과부하 | 429·503 으로 중단 | 폴백 사슬에 503 도 포함 |
 | 반복 상한이 빡빡함 | 검토 반려 후 재작업이 20회를 넘김 | 상한을 30 으로 조정 |
+| **검색 결과가 모델에 안 갔다** | `ToolResult.data` 가 쓰이지 않았다. 저장되는 요약은 `→ 3건` 처럼 **건수만**(48자) 적어, 다음 반복부터 모델은 URL 을 본 적이 없었다 | 요약에 `제목 (게시일) URL` 을 싣고, 관찰 절단 길이를 도구별로 뒀다 (D-022) |
+| **게시일 표기가 깨졌다** | Tavily 가 RFC-2822 를 주는데 앞 10자를 잘라 `Wed, 02 Se` 가 됐다 | `YYYY-MM-DD` 로 정규화. **날짜 대조가 함정 1번**이다 (D-022) |
+| **경고가 뒤 단계로 새어나갔다** | 호출 횟수를 실행 전체로 세니, 단계1 의 *"그만하고 finish_step 하라"* 가 단계3 에도 실려 원문을 열기 전에 종료됐다 | 단계 안에서만 센다 (D-023) |
+| 🔴 **게이트가 앞 단계 답변으로 충족됐다** | *"이미 답을 받았다면"* 이 어느 질문인지 구분하지 않아, 단계2(후보 선택)가 **질문 없이** 통과됐다. 단계4 는 물었다 — 비결정적으로 새는 구조 | 이 단계에서 물은 질문만 근거로 삼고, `finish_step` 을 **코드로 막았다** (D-023) |
 
-넷을 고친 뒤의 실행에서 **7/7 단계 완주**했다. 마지막 단계가 발송 승인이라
+앞의 다섯을 고친 뒤의 실행에서 **7/7 단계 완주**했다. 마지막 단계가 발송 승인이라
 사람이 승인해야 `done` 이 되는 구조인 것도 맞다.
+
+뒤의 넷은 **완주한 뒤에 발견한 것들**이다. 돌아가는 것과 제대로 돌아가는 것은 다르다.
+`run-ebec96b7eba9` 에서 확인했다.
+
+```
+단계2  ask_human → (사람 답변 2건) → finish     ← 이전에는 finish 만 하고 건너뜀
+단계3  web_search FAIL(이 단계 불허)
+       fetch_article OK  원문 563자 · 게시일 2026-09-04
+       fetch_article OK  게시일 2026-08-16
+       fetch_article OK  (재확인)
+단계4  get_audience_profile → get_card_template → ask_human
+```
+
+**`fetch_article` 이 실제로 원문을 열고 게시일을 확인한 첫 실행이다.**
+그전까지는 검색 결과 요약만 보고 넘어갔다 — 이 과제가 반복해서 경고한 함정 그대로였다.
 
 ## 2. 세팅 비교 — 같은 조건에서 모델만 바꿈
 
