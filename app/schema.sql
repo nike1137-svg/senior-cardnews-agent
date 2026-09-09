@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS steps (
 -- 실행 로그 정본. 화면 로그 패널과 trace.json 이 전부 여기서 나온다.
 CREATE TABLE IF NOT EXISTS tool_calls (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id         TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+    -- 실행에 속하지 않은 호출(스모크 테스트·워밍업)도 기록은 남긴다. 그래서 NULL 허용.
+    run_id         TEXT REFERENCES runs(run_id) ON DELETE CASCADE,
     step_no        INTEGER,
     tool_name      TEXT NOT NULL,
     reason         TEXT,                   -- 왜 이 도구를 호출했는가 (루브릭이 요구)

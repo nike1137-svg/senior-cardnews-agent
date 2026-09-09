@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     max_usd_per_run: float = 0.30
     max_usd_total: float = 3.00
 
+    # ── 실패 주입 (개발·시연용) ─────────────────────────────
+    # 쉼표로 구분: search_empty, fetch_fail, weather_fail, image_fail, line_fail
+    # 실패·재시도 화면은 나중에 재현하기 어렵다. 스위치로 언제든 만들 수 있게 한다.
+    fault_inject: str = ""
+
     # ── 경로 (상대경로면 프로젝트 루트 기준) ────────────────
     db_path: Path = Path("data/app.db")
     runs_dir: Path = Path("runs")

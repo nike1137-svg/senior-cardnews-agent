@@ -1,11 +1,28 @@
-"""에이전트가 호출할 도구 — 3단계에서 채운다.
+"""에이전트가 호출할 도구 (루브릭 2번).
 
-각 도구는 입력·출력 스키마와 실패 처리 규칙을 함께 정의한다 (루브릭 2번).
+각 도구는 입출력 스키마 · description · 실패 처리 규칙 · 권한을 함께 정의한다.
+이 모듈을 import 하면 registry 에 전부 등록된다.
 
-  search.py   웹 검색     Tavily        읽기 전용
-  fetch.py    원문 조회   httpx+trafilatura  읽기 전용
-  weather.py  날씨 조회   Open-Meteo    읽기 전용, 키 불필요
-  image.py    배경 생성   Antigravity CLI    실패 시 대체 배경으로 자동 전환
-  compose.py  카드 합성   Pillow        output/<실행ID>/ 안으로만 쓰기
-  line.py     발송        기본 dry-run. 실발송은 승인+환경변수 둘 다 (D-005)
+  web_search      Tavily              읽기 전용     0건 → 사람에게 질문
+  fetch_article   httpx+trafilatura   읽기 전용     실패 → '미확인' 으로 두고 계속
+  get_weather     Open-Meteo          읽기 전용     실패 → 건너뛰고 진행
+  compose_cards   Pillow              output/ 안만  실패 → 1회 재시도
+  send_line       LINE                외부 발송     🔴 재시도 금지, 3중 잠금
 """
+
+from __future__ import annotations
+
+from app.tools.base import (  # noqa: F401
+    Failure,
+    OnFail,
+    Permission,
+    Tool,
+    ToolResult,
+    registry,
+    run_tool,
+)
+
+# import 하는 것만으로 registry 에 등록된다
+from app.tools import compose, fetch, line, search, weather  # noqa: F401,E402
+
+__all__ = ["registry", "run_tool", "Tool", "ToolResult", "Failure", "OnFail", "Permission"]
