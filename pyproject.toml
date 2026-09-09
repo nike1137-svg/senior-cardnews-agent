@@ -1,0 +1,22 @@
+[project]
+name = "senior-cardnews-agent"
+version = "0.1.0"
+description = "시니어 생활정보 카드뉴스 제작 에이전트"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "jinja2>=3.1",
+    "pydantic-settings>=2.7",
+    "httpx>=0.28",
+    "python-multipart>=0.0.20",
+]
+
+# 단계별로 추가할 의존성 (지금 넣지 않는다)
+#   2단계 LLM 어댑터 : google-genai, openai
+#   3단계 도구       : tavily-python, trafilatura
+#   7단계 카드 합성  : pillow
+#   12단계 MCP 서버  : mcp
+
+[tool.uv]
+package = false
