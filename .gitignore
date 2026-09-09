@@ -6,6 +6,11 @@
 *.pem
 credentials*.json
 
+# LMS 원문 — 저장소에 두지 않는다 (공개 전환 시 노출 위험)
+# 사본 위치: C:\Users\nike1\projects\notes\mainquest4-lms\
+docs/reference/
+docs/rubric/
+
 # 파이썬
 .venv/
 venv/
@@ -16,8 +21,13 @@ __pycache__/
 # 노드
 node_modules/
 
-# 실행 산출물
+# 실행 산출물 · 상태 저장소
 output/
+runs/
+data/
+*.db
+*.db-wal
+*.db-shm
 *.log
 
 # OS / 에디터
