@@ -3,17 +3,17 @@
 > 이 파일은 **자동 생성된다.** `uv run python scripts/make_eval.py`
 > 숫자는 `runs/<실행ID>/outcome.json` 에서 계산한다. 손으로 적지 않는다.
 
-측정한 실행: **7건**
+측정한 실행: **8건**
 
 ## 1. 전체 지표
 
 | 지표 | 정의 | 결과 |
 |---|---|---|
-| 카드 생성률 | 카드 파일이 실제로 만들어진 실행 | **1/7 (14%)** |
-| 완주율 | 마지막 단계까지 끝난 실행 | 0/7 (0%) |
-| 사람 개입 횟수 | 실행당 질문 수 (적을수록 좋다) | 평균 **0.4회** (최소 0 / 최대 3) |
-| 루프 반복 | 실행당 판단 횟수 | 평균 3.9회 |
-| 도구 실패 | 전체 도구 호출 중 실패 | 7건 / 25건 |
+| 카드 생성률 | 카드 파일이 실제로 만들어진 실행 | **1/8 (12%)** |
+| 완주율 | 마지막 단계까지 끝난 실행 | 0/8 (0%) |
+| 사람 개입 횟수 | 실행당 질문 수 (적을수록 좋다) | 평균 **0.5회** (최소 0 / 최대 3) |
+| 루프 반복 | 실행당 판단 횟수 | 평균 4.2회 |
+| 도구 실패 | 전체 도구 호출 중 실패 | 9건 / 32건 |
 
 **완주율이 낮은 이유** — 마지막 단계가 **발송 승인**이고 기본이 dry-run 이라,
 사람이 승인하지 않으면 `done` 이 되지 않는다. 실제로 봐야 할 지표는 **카드 생성률**이다.
@@ -29,7 +29,7 @@
 
 | 모델 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
 |---|---|---|---|---|
-| `gemini-3.1-flash-lite` | 2 | 2,664 | 114 | list_past_publications → web_search✗ |
+| `gemini-3.1-flash-lite` | 6 | 9,245 | 463 | list_past_publications → web_search✗ → get_weather → list_past_publications |
 | `gemini-3.5-flash` | 3 | 4,129 | 88 | list_past_publications → get_weather → web_search✗ |
 | `gemini-3.5-flash-lite` | 2 | 2,664 | 60 | list_past_publications → web_search✗ |
 
@@ -53,14 +53,15 @@
 | 09-09 12:29 | 환절기 건강 지키는 생활 수칙 | `gemini-3.6-flash` | 0/7 | — | 0 | 4 | 4,138 | list_past_publications → get_weather → web_search✗ |
 | 09-09 12:38 | 시니어 환절기 건강 관리 | `gemini-3.5-flash` | 0/7 | — | 0 | 3 | 4,129 | list_past_publications → get_weather → web_search✗ |
 | 09-09 12:38 | 시니어 환절기 건강 관리 | `gemini-3.5-flash-lite` | 0/7 | — | 0 | 2 | 2,664 | list_past_publications → web_search✗ |
-| 09-09 12:38 | 시니어 환절기 건강 관리 | `gemini-3.1-flash-lite` | 0/7 | — | 0 | 2 | 2,664 | list_past_publications → web_search✗ |
+| 09-09 12:38 | 시니어 환절기 건강 관리 | `gemini-3.1-flash-lite` | 0/7 | — | 1 | 6 | 9,245 | list_past_publications → web_search✗ → get_weather → list_past_publications |
+| 09-09 13:23 | 시니어 겨울철 낙상 예방 | `gemini-3.5-flash` | 0/7 | — | 0 | 3 | 3,932 | list_past_publications → get_weather → web_search✗ |
 
 ### 모델별 집계
 
 | 모델 | 실행 | 카드 생성 | 사람 개입(평균) | 루프(평균) | 도구 실패 | 입력 토큰(평균) |
 |---|---|---|---|---|---|---|
-| `gemini/gemini-3.1-flash-lite` | 1 | 0/1 (0%) | 0.0 | 2.0 | 1 | 2,664 |
-| `gemini/gemini-3.5-flash` | 1 | 0/1 (0%) | 0.0 | 3.0 | 1 | 4,129 |
+| `gemini/gemini-3.1-flash-lite` | 1 | 0/1 (0%) | 1.0 | 6.0 | 2 | 9,245 |
+| `gemini/gemini-3.5-flash` | 2 | 0/2 (0%) | 0.0 | 3.0 | 2 | 4,030 |
 | `gemini/gemini-3.5-flash-lite` | 1 | 0/1 (0%) | 0.0 | 2.0 | 1 | 2,664 |
 | `gemini/gemini-3.6-flash` | 4 | 1/4 (25%) | 0.8 | 5.0 | 4 | 5,660 |
 
@@ -69,6 +70,8 @@
 | 실패 라벨 | 횟수 | 어느 단계에서 주로 났나 |
 |---|---|---|
 | 도구오류 | 7 | 조사 (외부 키·한도) |
+| 중간포기 | 1 | 조사 (외부 키·한도) |
+| 검색부실 | 1 | 조사 (외부 키·한도) |
 
 ### 관찰
 
