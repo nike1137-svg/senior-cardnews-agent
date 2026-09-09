@@ -107,7 +107,7 @@ gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-vis
 - [x] 폰트 Pretendard 동봉 (OFL, 재배포 가능)
 - [x] 캡처 8종
 - [ ] **저장소 공개 전환** ← 제출 직전
-- [ ] n8n 스케줄 트리거 ⭐확장4 (선택)
+- [~] n8n 스케줄 트리거 ⭐확장4 — **워크플로 JSON 작성 완료** (`deploy/n8n/`), n8n 임포트만 남음
 - [ ] 카드 버전 롤백 ⭐확장6 (선택)
 
 ### 지표 (2026-09-10)
@@ -139,6 +139,11 @@ uv run python -c "from app.config import get_settings as g; s=g(); print({k: boo
 터널 켜기 → 저장소 공개 전환 → 구글폼 제출. 이것만 하면 제출은 끝난다.
 
 ### 2순위 — 남은 확장 (선택)
+
+🟢 **n8n 워크플로는 이미 만들어 커밋해뒀다** — `deploy/n8n/mq4-cardnews-schedule.json`.
+임포트 절차와 설계 메모는 `deploy/n8n/README.md` 에 있다. **앱은 수정하지 않았다.**
+개인계정 인스턴스에 올리기로 했고 분리 장치 4개를 규칙으로 뒀다 (D-021).
+
 
 **n8n 스케줄 트리거 ⭐확장4** — 평가 5번이 이름으로 지목한 셋 중 마지막 남은 것.
 (MCP 서버·멀티 에이전트는 구현 완료)

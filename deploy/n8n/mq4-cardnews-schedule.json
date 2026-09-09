@@ -1,0 +1,113 @@
+{
+  "name": "mq4-cardnews-schedule",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 메인퀘스트4 — 시니어 카드뉴스 자동 트리거\n\n**이 워크플로는 판단을 하지 않는다.** 트리거만 담당하고,\n무엇을 조사하고 어떤 카드를 만들지는 앱의 에이전트가 정한다 (DECISIONS D-006).\n\n월요일 06:00 에 제작을 시작해두면, 담당자는 출근해서\n화면에 뜬 질문에 답만 하면 된다.\n\n### 다른 워크플로와 섞지 말 것\n이 인스턴스에는 실서비스(온담이·이음이)가 함께 있다.\n- 이름 접두어 `mq4-` 를 유지한다\n- 자격증명을 기존 것과 공유하지 않는다\n- 실서비스 워크플로는 열지 않는다",
+        "height": 320,
+        "width": 460
+      },
+      "id": "note-1",
+      "name": "읽어둘 것",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-160, -220]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "trigger-1",
+      "name": "월요일 06:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-160, 140]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cardnews.dodami-ai.com/runs",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "topic",
+              "value": "이번 주 시니어 건강·생활 정보"
+            },
+            {
+              "name": "region",
+              "value": "서울 노원구"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "http-1",
+      "name": "제작 시작 (POST /runs)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [80, 140]
+    },
+    {
+      "parameters": {
+        "jsCode": "// POST /runs 는 303 으로 /runs/<run_id> 를 돌려준다.\n// 리다이렉트를 따라가지 않게 해두었으므로 Location 헤더에서 run_id 를 꺼낸다.\n// 따라가면 HTML 페이지만 받아서 어느 실행인지 알 수 없다.\nconst r = $input.first().json;\nconst headers = r.headers || {};\nconst loc = headers.location || headers.Location || '';\nconst runId = loc.split('/').filter(Boolean).pop() || '';\nconst ok = r.statusCode === 303 || r.statusCode === 302;\n\nif (!ok || !runId) {\n  throw new Error(`제작 시작 실패 — status=${r.statusCode} location=\"${loc}\". 앱과 터널이 살아 있는지 확인할 것.`);\n}\n\nreturn [{\n  json: {\n    started_at: new Date().toISOString(),\n    status: r.statusCode,\n    run_id: runId,\n    run_url: `https://cardnews.dodami-ai.com/runs/${runId}`,\n    note: '조사를 마치면 waiting_for_user 로 멈춘다. 사람이 답할 때까지 진행하지 않는다.'\n  }\n}];"
+      },
+      "id": "code-1",
+      "name": "실행 주소 정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 140]
+    }
+  ],
+  "connections": {
+    "월요일 06:00": {
+      "main": [
+        [
+          {
+            "node": "제작 시작 (POST /runs)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "제작 시작 (POST /runs)": {
+      "main": [
+        [
+          {
+            "node": "실행 주소 정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Seoul"
+  },
+  "pinData": {},
+  "tags": []
+}
