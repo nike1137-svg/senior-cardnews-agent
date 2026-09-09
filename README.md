@@ -326,6 +326,50 @@ cloudflared --config deploy/cloudflared.yml tunnel run cardnews
 **LINE 실채널은 연결하지 않았습니다.** dry-run으로만 검증했습니다.
 도구 스키마와 3중 잠금 로직은 그대로 있고, 실제 채널 연결만 남았습니다.
 
+## 라이선스·출처
+
+이 저장소의 코드·문서·생성 데이터는 **MIT 라이선스**입니다 ([LICENSE](./LICENSE)).
+의존하는 라이브러리와 서비스는 각자의 라이선스를 따릅니다.
+
+### 라이브러리
+
+| 항목 | 라이선스 |
+|---|---|
+| FastAPI · pydantic-settings · MCP SDK · tavily-python | MIT |
+| uvicorn · httpx · Jinja2 | BSD |
+| trafilatura · google-genai · openai · python-multipart | Apache-2.0 |
+| Pillow | MIT-CMU |
+
+위 값은 짐작이 아니라 설치된 패키지 메타데이터에서 읽은 것입니다.
+
+### 외부 서비스
+
+| 항목 | 출처 / 조건 |
+|---|---|
+| Gemini API | [Google AI 무료 티어](https://ai.google.dev/gemini-api/terms) · **모델당 하루 20회** |
+| Tavily | [tavily.com](https://tavily.com) · 무료 티어 월 1,000크레딧 |
+| Open-Meteo | [open-meteo.com](https://open-meteo.com) · 비상업적 무료, 키 불필요 |
+| Antigravity CLI | [antigravity.google](https://antigravity.google) · 캐릭터 이미지 생성에만 사용 |
+
+### 폰트 — 지금 상태로는 다른 컴퓨터에서 그대로 못 씁니다
+
+카드 글자에 **맑은 고딕**(`C:/Windows/Fonts/malgun.ttf`)을 쓰고 있습니다.
+Windows에 기본으로 깔린 폰트를 읽어 쓰는 것이라 저장소에 폰트 파일을 넣지 않았고,
+넣어서도 안 됩니다. 마이크로소프트 폰트는 재배포가 허용되지 않습니다.
+
+그래서 Windows가 아닌 곳에서 실행하면 폰트를 찾지 못해 카드 합성이 실패합니다.
+`app/cards/theme.py`의 `FONT_CANDIDATES`가 **Pretendard를 먼저 찾고 없으면 맑은 고딕으로
+떨어지도록** 되어 있으니, `assets/fonts/`에 Pretendard(SIL Open Font License)를 넣으면
+그 문제가 사라지고 재배포도 가능해집니다. 마감에 쫓겨 폰트 교체까지 못 했습니다.
+
+### 생성물
+
+캐릭터 이미지 네 자세는 Antigravity(Gemini 이미지 모델)로 만들었고,
+마젠타 배경을 코드로 지워 자산으로 만들었습니다. 실제 인물의 사진이나 초상은 쓰지 않았습니다.
+
+카드에 들어가는 문구와 스토리보드는 실행할 때마다 Gemini가 만듭니다.
+저장소에 들어 있는 카드 다섯 장은 2026년 9월 9일에 실제로 생성한 결과물입니다.
+
 ## 폴더 구조
 
 ```
