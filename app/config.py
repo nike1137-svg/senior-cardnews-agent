@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     # 재작업 사이클 한 번에 5~6회가 더 든다. 20 이면 반려가 한 번만 나도 카드까지 못 간다.
     # 상한이 고장난 게 아니라 기준이 실제 동작과 안 맞았다.
     max_loop_iterations: int = 30
+    # 한 단계에서 사람에게 물을 수 있는 횟수. 질문도 루프를 태운다 —
+    # 실제로 카드 합성 단계에서 같은 것을 세 번 물어 반복 예산을 3회 먹었다.
+    max_asks_per_step: int = 3
     max_run_seconds: int = 600
     max_image_calls: int = 8
     max_llm_calls_per_run: int = 40

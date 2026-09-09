@@ -234,6 +234,21 @@ class AgentLoop:
         call = result.tool_calls[0]
 
         if call.name == ASK_HUMAN.name:
+            # 질문에도 상한을 둔다. 재시도 상한(3회)은 실패에만 걸리고 질문은 무제한이었다.
+            # 카드 합성 단계에서 같은 것을 세 번 물어 반복 예산을 3회 태운 적이 있다.
+            # 사람을 부르는 것 자체는 좋은 행동이지만, 같은 자리를 맴돌면 완주를 막는다.
+            asked_here = sum(1 for o in state.observations(self.run_id)
+                             if o["step_no"] == phase["no"] and o["tool_name"] == ASK_HUMAN.name)
+            if asked_here >= self.settings.max_asks_per_step:
+                state.bump_retry(self.run_id, phase["no"])
+                log_call(self.run_id, phase["no"], "ask_human",
+                         "질문 상한 초과", call.arguments,
+                         ToolResult(ok=False,
+                                    summary=f"이 단계에서 이미 {asked_here}회 물었다. "
+                                            "더 묻지 말고 지금 있는 답으로 진행하라.",
+                                    error_label=Failure.GAVE_UP))
+                return {"action": "ask_limit", "step": phase["name"], "asked": asked_here}
+
             args = call.arguments
             payload = {"question": args.get("question", "어떻게 할까요?"),
                        "options": args.get("options", []),
