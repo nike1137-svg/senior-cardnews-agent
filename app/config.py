@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     # 실발송은 이 스위치 + 사람 승인이 모두 있어야 한다. 기본은 dry-run.
     line_channel_access_token: str = ""
     line_send_enabled: bool = False
+    # 수신자 한 명을 명시한다. 비워 두면 실발송을 하지 않는다.
+    # broadcast(친구 전체 발송)는 쓰지 않는다 — 대상이 늘어나면 사고가 된다.
+    line_to: str = ""
+
+    # 카드 이미지를 LINE 에 보내려면 공개 https 주소여야 한다. 로컬 파일은 못 보낸다.
+    public_base_url: str = "https://cardnews.dodami-ai.com"
 
     # ── 종료 조건 (PRD 3장) ─────────────────────────────────
     max_retry_per_step: int = 3
