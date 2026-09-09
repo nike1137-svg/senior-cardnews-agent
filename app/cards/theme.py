@@ -31,17 +31,20 @@ GOLD = (232, 185, 106)         # 표지 제목 아래쪽에만
 WHITE_DIM = (206, 214, 228)    # 상단바 글씨
 
 # ── 폰트 ────────────────────────────────────────────────────
-# 우선 Windows 기본 폰트로 구조를 잡는다.
-# Pretendard 를 넣으면 여기만 바꾸면 된다 (PRD 9장 2번).
+# Pretendard (SIL Open Font License 1.1) 를 저장소에 동봉했다.
+# OFL 은 재배포를 허용하므로 다른 컴퓨터에서도 그대로 돈다.
+#
+# 맑은 고딕은 Windows 기본 폰트라 재배포할 수 없어 파일을 넣지 않았다.
+# 폰트가 아예 없는 환경을 위한 마지막 대비로만 남겨 둔다.
 FONT_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "fonts"
 
 FONT_CANDIDATES = {
     "bold": [
-        FONT_DIR / "Pretendard-ExtraBold.ttf",
+        FONT_DIR / "Pretendard-ExtraBold.otf",
         Path("C:/Windows/Fonts/malgunbd.ttf"),
     ],
     "medium": [
-        FONT_DIR / "Pretendard-Medium.ttf",
+        FONT_DIR / "Pretendard-Medium.otf",
         Path("C:/Windows/Fonts/malgun.ttf"),
     ],
 }

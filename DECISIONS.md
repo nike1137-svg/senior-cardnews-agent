@@ -488,6 +488,31 @@ cloudflared tunnel route dns cardnews cardnews.dodami-ai.com
 
 ---
 
+## D-018 ✅ 카드 폰트는 Pretendard — 재배포 가능한 것으로
+
+**날짜** 2026-09-09
+
+**결정** 카드 글자에 Pretendard(SIL Open Font License 1.1) ExtraBold·Medium 두 굵기를 쓰고,
+`assets/fonts/` 에 라이선스 전문과 함께 동봉한다.
+
+**왜 바꿨나** 처음에는 Windows 기본 폰트인 맑은 고딕으로 만들었다. 구조를 잡는 데는
+문제가 없었지만 **마이크로소프트 폰트는 재배포가 허용되지 않는다.** 저장소에 넣을 수 없고,
+넣지 않으면 Windows 가 아닌 곳에서 폰트를 못 찾아 카드 합성이 실패한다.
+제출물이 특정 컴퓨터에서만 도는 것은 맞지 않다.
+
+**부수 효과** 글자 품질만 좋아진 게 아니라 **제목 줄바꿈 문제가 함께 풀렸다.**
+맑은 고딕에서는 "생활 속에서 나타나는 초기 신호" 가 두 줄로 갈라지면서
+강조어 "초기 신호" 가 줄 사이로 끊겼는데, Pretendard 가 조금 좁아서 한 줄에 들어간다.
+
+**주의** 배포판 zip 의 `public/static/` 에는 **OTF** 만 있다.
+TTF 는 `alternative/`(대체 글자꼴) 폴더에만 있으므로 표준 글자꼴을 쓰려면 OTF 를 써야 한다.
+Pillow 는 OTF 를 문제없이 연다.
+
+**폴백** `FONT_CANDIDATES` 는 Pretendard 를 먼저 찾고 없을 때만 맑은 고딕으로 떨어진다.
+폰트가 아예 없는 환경을 위한 마지막 대비다.
+
+---
+
 ## ⬜ 아직 정하지 않은 것
 
 `PRD.md` 9장 참조. 남은 것은 카드 양식·폰트·LINE 실채널·Antigravity 한도 실측·

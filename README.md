@@ -339,6 +339,7 @@ cloudflared --config deploy/cloudflared.yml tunnel run cardnews
 | uvicorn · httpx · Jinja2 | BSD |
 | trafilatura · google-genai · openai · python-multipart | Apache-2.0 |
 | Pillow | MIT-CMU |
+| [Pretendard](https://github.com/orioncactus/pretendard) (카드 폰트) | SIL Open Font License 1.1 |
 
 위 값은 짐작이 아니라 설치된 패키지 메타데이터에서 읽은 것입니다.
 
@@ -351,16 +352,23 @@ cloudflared --config deploy/cloudflared.yml tunnel run cardnews
 | Open-Meteo | [open-meteo.com](https://open-meteo.com) · 비상업적 무료, 키 불필요 |
 | Antigravity CLI | [antigravity.google](https://antigravity.google) · 캐릭터 이미지 생성에만 사용 |
 
-### 폰트 — 지금 상태로는 다른 컴퓨터에서 그대로 못 씁니다
+### 폰트
 
-카드 글자에 **맑은 고딕**(`C:/Windows/Fonts/malgun.ttf`)을 쓰고 있습니다.
-Windows에 기본으로 깔린 폰트를 읽어 쓰는 것이라 저장소에 폰트 파일을 넣지 않았고,
-넣어서도 안 됩니다. 마이크로소프트 폰트는 재배포가 허용되지 않습니다.
+카드 글자에 **Pretendard**를 씁니다. SIL Open Font License 1.1이라 재배포가 허용되어
+`assets/fonts/`에 ExtraBold와 Medium 두 굵기를 동봉했습니다.
+라이선스 전문은 [Pretendard-LICENSE.txt](./assets/fonts/Pretendard-LICENSE.txt)에 함께 넣었습니다.
 
-그래서 Windows가 아닌 곳에서 실행하면 폰트를 찾지 못해 카드 합성이 실패합니다.
-`app/cards/theme.py`의 `FONT_CANDIDATES`가 **Pretendard를 먼저 찾고 없으면 맑은 고딕으로
-떨어지도록** 되어 있으니, `assets/fonts/`에 Pretendard(SIL Open Font License)를 넣으면
-그 문제가 사라지고 재배포도 가능해집니다. 마감에 쫓겨 폰트 교체까지 못 했습니다.
+처음에는 Windows 기본 폰트인 맑은 고딕으로 만들었습니다. 구조를 잡는 데는 문제가 없었지만
+마이크로소프트 폰트는 재배포가 허용되지 않아 저장소에 넣을 수 없고,
+그러면 Windows가 아닌 곳에서는 폰트를 못 찾아 카드 합성이 실패합니다.
+과제 제출물이 특정 컴퓨터에서만 도는 것은 맞지 않다고 봐서 Pretendard로 바꿨습니다.
+
+바꾸고 나니 글자 품질만 좋아진 게 아니라 제목 줄바꿈 문제도 함께 풀렸습니다.
+맑은 고딕에서 "생활 속에서 나타나는 초기 신호"가 두 줄로 갈라지면서
+강조어 "초기 신호"가 줄 사이로 끊겼는데, Pretendard가 조금 좁아서 한 줄에 들어갑니다.
+
+`app/cards/theme.py`의 `FONT_CANDIDATES`는 Pretendard를 먼저 찾고 없을 때만
+맑은 고딕으로 떨어집니다. 폰트가 아예 없는 환경을 위한 마지막 대비로 남겨 둔 것입니다.
 
 ### 생성물
 
