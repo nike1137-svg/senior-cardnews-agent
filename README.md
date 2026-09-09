@@ -380,6 +380,8 @@ cloudflared --config deploy/cloudflared.yml tunnel run cardnews
 담당자 출근    →  화면에 뜬 질문에 답만 하면 이어짐
 ```
 
+![n8n 자동 트리거 실행](docs/screenshots/11-n8n-trigger.png)
+
 워크플로는 `deploy/n8n/mq4-cardnews-schedule.json` 에 있습니다. 임포트 절차와
 설계 메모는 [deploy/n8n/README.md](deploy/n8n/README.md) 에 적었습니다.
 
