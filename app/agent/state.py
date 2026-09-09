@@ -22,7 +22,7 @@ PHASES: list[dict[str, Any]] = [
     {"no": 1, "name": "조사", "gate": False,
      "goal": ("주제에 맞는 최근 소식 후보를 모은다. 날씨가 필요하면 함께 조회한다. "
               "**후보를 고르기 전에 list_past_publications 로 과거 발행 이력을 확인해** "
-              "최근에 이미 다룬 주제는 후순위로 내린다."),
+              "최근에 이미 다룬 주제는 후순위로 내린다. 웹 검색은 최대 3회까지만 한다. 검색어를 계속 바꾸지 말고, 3회 안에 모인 자료로 후보를 추려 finish_step 으로 넘어간다. 자료가 정말 부족하면 ask_human 으로 사람에게 물어라."),
      "tools": ["web_search", "get_weather", "list_past_publications"]},
     {"no": 2, "name": "후보 선택", "gate": True,
      "goal": "모은 후보 중 카드뉴스에 실을 소식을 사람이 1~3개 고른다.",
@@ -176,6 +176,24 @@ def bump_retry(run_id: str, step_no: int) -> int:
         r = conn.execute("SELECT retry_count FROM steps WHERE run_id=? AND step_no=?",
                          (run_id, step_no)).fetchone()
     return r["retry_count"]
+
+
+def reopen_from(run_id: str, step_no: int) -> None:
+    """이 단계부터 다시 하도록 되돌린다. 검토자가 반려했을 때 쓴다."""
+    with closing(connect()) as conn, conn:
+        conn.execute(
+            "UPDATE steps SET status='pending', ended_at=NULL "
+            "WHERE run_id=? AND step_no>=?", (run_id, step_no))
+        conn.execute("UPDATE runs SET status='running' WHERE run_id=?", (run_id,))
+
+
+def reject_count(run_id: str) -> int:
+    """검토 에이전트가 반려한 횟수. 무한 반려를 막는 근거."""
+    with closing(connect()) as conn:
+        r = conn.execute(
+            "SELECT COUNT(*) AS n FROM tool_calls "
+            "WHERE run_id=? AND tool_name='검토에이전트' AND ok=0", (run_id,)).fetchone()
+    return r["n"]
 
 
 def steps_of(run_id: str) -> list[dict]:

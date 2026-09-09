@@ -90,9 +90,14 @@ class GeminiAdapter:
         return out
 
     @staticmethod
-    def _is_quota_error(exc: Exception) -> bool:
+    def _should_try_next(exc: Exception) -> bool:
+        """다음 모델로 갈아탈 만한 오류인가.
+
+        429 는 일일 한도 소진, 503 은 그 모델이 일시적으로 붐비는 것이다.
+        둘 다 이 모델로는 지금 못 한다는 뜻이므로 다음 후보로 넘어간다.
+        """
         s = str(exc)
-        return "429" in s or "RESOURCE_EXHAUSTED" in s
+        return any(k in s for k in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE"))
 
     async def chat(
         self,
@@ -113,15 +118,17 @@ class GeminiAdapter:
                 used = model
                 break
             except Exception as exc:  # noqa: BLE001
-                if not self._is_quota_error(exc):
+                if not self._should_try_next(exc):
                     raise
                 tried.append(model)
-                log.warning("%s 일일 한도 소진 — 다음 모델로 갈아탑니다", model)
+                why = "일일 한도 소진" if "429" in str(exc) else "일시적 과부하"
+                log.warning("%s %s — 다음 모델로 갈아탑니다", model, why)
 
         if resp is None:
             raise BudgetExceeded(
-                "무료 티어 일일 한도 소진",
-                f"시도한 모델: {', '.join(tried)}. 내일 초기화되거나 다른 키가 필요합니다",
+                "쓸 수 있는 모델이 없음",
+                f"시도한 모델: {', '.join(tried)}. "
+                "일일 한도 소진이거나 모두 일시적으로 붐빕니다",
             )
 
         if used != self.model:

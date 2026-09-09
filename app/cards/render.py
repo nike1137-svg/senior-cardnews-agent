@@ -92,10 +92,27 @@ def number_badge(img: Image.Image, cx: int, cy: int, n: int, r: int = 34) -> Non
 
 
 # ── 글자 ────────────────────────────────────────────────────
+def clean(text: str) -> str:
+    """모델이 넣은 줄바꿈 표기를 지운다.
+
+    LLM 이 본문에 줄바꿈을 문자 그대로 적어 넣는 일이 있다.
+    그대로 그리면 카드에 백슬래시 n 이 찍힌다. 실제로 그렇게 나왔다.
+    줄바꿈은 wrap 이 폭을 보고 알아서 하므로 공백으로 바꾼다.
+    """
+    if not text:
+        return ""
+    bs = chr(92)
+    for token in (bs + "r" + bs + "n", bs + "n", bs + "r", bs + "t"):
+        text = text.replace(token, " ")
+    for ch in (chr(13), chr(10), chr(9)):
+        text = text.replace(ch, " ")
+    return " ".join(text.split())
+
+
 def wrap(text: str, f: ImageFont.FreeTypeFont, max_w: int) -> list[str]:
     """한글은 어절 단위로 끊는다."""
     lines, cur = [], ""
-    for word in text.split():
+    for word in clean(text).split():
         trial = f"{cur} {word}".strip()
         if f.getlength(trial) <= max_w:
             cur = trial

@@ -16,7 +16,7 @@ import json
 import time
 from datetime import datetime, timezone
 
-from app.agent import state
+from app.agent import reviewer, state
 from app.config import get_settings
 from app.llm import Message, ToolSpec, get_adapter
 from app.llm.budget import BudgetExceeded
@@ -126,6 +126,21 @@ class AgentLoop:
                 mark = "성공" if o["ok"] else f"실패({o['error_label'] or '?'})"
                 lines.append(f"  - [{o['tool_name']}] {mark} {o['duration_ms']}ms :: "
                              f"{(o['output_summary'] or '')[:300]}")
+
+            # 같은 도구를 몇 번 불렀는지 알려준다.
+            # 이걸 안 주면 모델이 검색어만 바꿔 가며 계속 검색한다 (실제로 12회 반복했다).
+            counts: dict[str, int] = {}
+            for o in obs:
+                counts[o["tool_name"]] = counts.get(o["tool_name"], 0) + 1
+            lines.append("")
+            lines.append("이번 실행에서 부른 횟수: "
+                         + ", ".join(f"{k} {v}회" for k, v in counts.items()))
+            over = [k for k, v in counts.items() if v >= 3]
+            if over:
+                lines.append(
+                    f"  경고: {', '.join(over)} 는 이미 3회 이상 불렀다. "
+                    "같은 도구를 더 부르지 말고 지금 있는 자료로 판단해 "
+                    "finish_step 으로 넘어가거나 ask_human 으로 사람에게 물어라.")
         else:
             lines.append("\n아직 도구를 부른 적이 없다.")
 
@@ -211,6 +226,19 @@ class AgentLoop:
                      call.arguments, ToolResult(ok=True, summary=summary))
             return {"action": "finish_step", "step": phase["name"], "summary": summary}
 
+        # 이 단계에서 허용된 도구인가. 모델에게 보여주지 않았어도 이름을 대면
+        # 레지스트리에서 찾아 실행돼 버린다. 실제로 심층검증 단계에서 web_search 를
+        # 6회 불러 반복 상한을 태웠다. 권한 최소화는 목록을 안 주는 것으로는 부족하다.
+        if call.name not in phase["tools"]:
+            state.bump_retry(self.run_id, phase["no"])
+            log_call(self.run_id, phase["no"], call.name,
+                     f"{phase['name']} 단계에서 허용되지 않은 도구", call.arguments,
+                     ToolResult(ok=False,
+                                summary=(f"{call.name} 은 이 단계에서 쓸 수 없다. "
+                                         f"허용: {', '.join(phase['tools']) or '없음'}"),
+                                error_label=Failure.TOOL_ERROR))
+            return {"action": "not_allowed", "name": call.name, "step": phase["name"]}
+
         tool = registry.get(call.name)
         if tool is None:
             log_call(self.run_id, phase["no"], call.name, "없는 도구를 부름", call.arguments,
@@ -226,6 +254,27 @@ class AgentLoop:
 
         res = await run_tool(tool, args, run_id=self.run_id, step_no=phase["no"],
                              reason=(result.text or "").strip()[:200] or "다음 행동으로 선택")
+
+        # 카드가 만들어졌으면 **다른 역할의 에이전트**가 문구를 검사한다 (⭐확장5).
+        # 만든 쪽이 스스로 채점하면 대체로 통과시킨다.
+        if tool.name == "compose_cards" and res.ok:
+            review = await reviewer.review_cards(
+                self.run_id,
+                cards=args.get("cards", []),
+                evidence="\n".join(
+                    f"- {o['tool_name']}: {o['output_summary']}"
+                    for o in state.observations(self.run_id) if o["ok"]),
+                step_no=phase["no"],
+                rejects_so_far=state.reject_count(self.run_id),
+            )
+            if not review.passed:
+                # 스토리보드부터 다시 짜게 되돌린다
+                state.reopen_from(self.run_id, 4)
+                return {"action": "review_reject", "step": phase["name"],
+                        "summary": review.summary, "problems": len(review.problems),
+                        "rejects": review.rejects}
+            return {"action": "review_pass", "step": phase["name"],
+                    "summary": review.summary, "escalated": review.escalated}
 
         if not res.ok and tool.on_fail is OnFail.ASK_HUMAN:
             payload = {"question": f"{tool.name} 이(가) 실패했습니다. 어떻게 할까요?",

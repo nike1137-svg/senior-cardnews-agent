@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     # 한 모델이 429 를 내면 아래 순서대로 갈아탄다. 모델마다 한도가 따로라 총량이 늘어난다.
     gemini_model: str = "gemini-3.5-flash"
     gemini_fallback_models: str = (
-        "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3-flash-preview,gemini-3.6-flash"
+        "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3-flash-preview,"
+        "gemini-3.7-flash,gemini-3.6-flash"
     )
     gemini_image_model: str = "gemini-3.1-flash-image"
     openai_api_key: str = ""
@@ -49,7 +50,10 @@ class Settings(BaseSettings):
 
     # ── 종료 조건 (PRD 3장) ─────────────────────────────────
     max_retry_per_step: int = 3
-    max_loop_iterations: int = 20
+    # 20 으로 뒀다가 올렸다. 검토 에이전트가 반려하면 스토리보드부터 다시 하므로
+    # 재작업 사이클 한 번에 5~6회가 더 든다. 20 이면 반려가 한 번만 나도 카드까지 못 간다.
+    # 상한이 고장난 게 아니라 기준이 실제 동작과 안 맞았다.
+    max_loop_iterations: int = 30
     max_run_seconds: int = 600
     max_image_calls: int = 8
     max_llm_calls_per_run: int = 40

@@ -3,20 +3,33 @@
 > 이 파일은 **자동 생성된다.** `uv run python scripts/make_eval.py`
 > 숫자는 `runs/<실행ID>/outcome.json` 에서 계산한다. 손으로 적지 않는다.
 
-측정한 실행: **8건**
+측정한 실행: **12건**
 
 ## 1. 전체 지표
 
 | 지표 | 정의 | 결과 |
 |---|---|---|
-| 카드 생성률 | 카드 파일이 실제로 만들어진 실행 | **1/8 (12%)** |
-| 완주율 | 마지막 단계까지 끝난 실행 | 0/8 (0%) |
-| 사람 개입 횟수 | 실행당 질문 수 (적을수록 좋다) | 평균 **0.5회** (최소 0 / 최대 3) |
-| 루프 반복 | 실행당 판단 횟수 | 평균 4.2회 |
-| 도구 실패 | 전체 도구 호출 중 실패 | 9건 / 32건 |
+| 카드 생성률 | 카드 파일이 실제로 만들어진 실행 | **2/12 (17%)** |
+| 완주율 | 마지막 단계까지 끝난 실행 | 1/12 (8%) |
+| 사람 개입 횟수 | 실행당 질문 수 (적을수록 좋다) | 평균 **1.1회** (최소 0 / 최대 6) |
+| 루프 반복 | 실행당 판단 횟수 | 평균 8.1회 |
+| 도구 실패 | 전체 도구 호출 중 실패 | 12건 / 96건 |
 
-**완주율이 낮은 이유** — 마지막 단계가 **발송 승인**이고 기본이 dry-run 이라,
-사람이 승인하지 않으면 `done` 이 되지 않는다. 실제로 봐야 할 지표는 **카드 생성률**이다.
+**완주율이 낮은 이유 — 실패한 실행을 지우지 않았다**
+
+여기 있는 실행 대부분은 만드는 도중의 것이다. 지우면 표는 예뻐지지만
+무엇을 고쳤는지가 사라진다. 그대로 두고 원인을 적는다.
+
+| 원인 | 무엇이었나 | 어떻게 고쳤나 |
+|---|---|---|
+| 검색 도구 키 없음 | Tavily 키가 없어 조사 단계가 통째로 실패 | 키를 발급받아 연결 |
+| 검색 무한 반복 | 모델이 검색어만 바꿔 12회 반복하다 상한에 걸림 | 도구별 호출 횟수를 모델에게 알려주고 상한 명시 |
+| 단계 밖 도구 호출 | 목록에 없는 도구도 이름만 대면 실행됨 | 단계별 허용 목록을 코드로 강제 |
+| 모델 한도·과부하 | 429·503 으로 중단 | 폴백 사슬에 503 도 포함 |
+| 반복 상한이 빡빡함 | 검토 반려 후 재작업이 20회를 넘김 | 상한을 30 으로 조정 |
+
+넷을 고친 뒤의 실행에서 **7/7 단계 완주**했다. 마지막 단계가 발송 승인이라
+사람이 승인해야 `done` 이 되는 구조인 것도 맞다.
 
 ## 2. 세팅 비교 — 같은 조건에서 모델만 바꿈
 
@@ -32,6 +45,15 @@
 | `gemini-3.1-flash-lite` | 6 | 9,245 | 463 | list_past_publications → web_search✗ → get_weather → list_past_publications |
 | `gemini-3.5-flash` | 3 | 4,129 | 88 | list_past_publications → get_weather → web_search✗ |
 | `gemini-3.5-flash-lite` | 2 | 2,664 | 60 | list_past_publications → web_search✗ |
+
+**주제: 시니어 독감 예방접종 안내** — 같은 지역·같은 시점, 모델만 바꿈
+
+| 모델 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
+|---|---|---|---|---|
+| `gemini-3-flash-preview` | 27 | 64,820 | 6,283 | list_past_publications → web_search → web_search → get_weather → web_search → fetch_article✗ → web_search✗ → get_audience_profile → get_card_template → compose_cards → 검토에이전트✗ → get_audience_profile → compose_cards → 검토에이전트 → record_publication |
+| `gemini-3.5-flash` | 2 | 1,252 | 29 | list_past_publications |
+| `gemini-3.5-flash` | 14 | 22,156 | 603 | list_past_publications → web_search → get_weather → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search |
+| `gemini-3.5-flash-lite` | 20 | 33,373 | 966 | list_past_publications → web_search → web_search → get_weather → web_search → web_search → web_search → web_search → web_search → web_search → web_search → get_audience_profile → get_card_template |
 
 ### 무엇이 달랐나
 
@@ -55,23 +77,29 @@
 | 09-09 12:38 | 시니어 환절기 건강 관리 | `gemini-3.5-flash-lite` | 0/7 | — | 0 | 2 | 2,664 | list_past_publications → web_search✗ |
 | 09-09 12:38 | 시니어 환절기 건강 관리 | `gemini-3.1-flash-lite` | 0/7 | — | 1 | 6 | 9,245 | list_past_publications → web_search✗ → get_weather → list_past_publications |
 | 09-09 13:23 | 시니어 겨울철 낙상 예방 | `gemini-3.5-flash` | 0/7 | — | 0 | 3 | 3,932 | list_past_publications → get_weather → web_search✗ |
+| 09-09 14:43 | 시니어 독감 예방접종 안내 | `gemini-3.5-flash` | 0/7 | — | 0 | 2 | 1,252 | list_past_publications |
+| 09-09 14:45 | 시니어 독감 예방접종 안내 | `gemini-3.5-flash` | 0/7 | — | 0 | 14 | 22,156 | list_past_publications → web_search → get_weather → web_search → web_search → we |
+| 09-09 14:50 | 시니어 독감 예방접종 안내 | `gemini-3.5-flash-lite` | 4/7 | — | 3 | 20 | 33,373 | list_past_publications → web_search → web_search → get_weather → web_search → we |
+| 09-09 14:57 | 시니어 독감 예방접종 안내 | `gemini-3-flash-preview` | 7/7 | ⭕ | 6 | 27 | 64,820 | list_past_publications → web_search → web_search → get_weather → web_search → fe |
 
 ### 모델별 집계
 
 | 모델 | 실행 | 카드 생성 | 사람 개입(평균) | 루프(평균) | 도구 실패 | 입력 토큰(평균) |
 |---|---|---|---|---|---|---|
+| `gemini/gemini-3-flash-preview` | 1 | 1/1 (100%) | 6.0 | 27.0 | 3 | 64,820 |
 | `gemini/gemini-3.1-flash-lite` | 1 | 0/1 (0%) | 1.0 | 6.0 | 2 | 9,245 |
-| `gemini/gemini-3.5-flash` | 2 | 0/2 (0%) | 0.0 | 3.0 | 2 | 4,030 |
-| `gemini/gemini-3.5-flash-lite` | 1 | 0/1 (0%) | 0.0 | 2.0 | 1 | 2,664 |
+| `gemini/gemini-3.5-flash` | 4 | 0/4 (0%) | 0.0 | 5.5 | 2 | 7,867 |
+| `gemini/gemini-3.5-flash-lite` | 2 | 0/2 (0%) | 1.5 | 11.0 | 1 | 18,018 |
 | `gemini/gemini-3.6-flash` | 4 | 1/4 (25%) | 0.8 | 5.0 | 4 | 5,660 |
 
 ## 4. 실패 사례 — 어느 단계가 원인이었나
 
 | 실패 라벨 | 횟수 | 어느 단계에서 주로 났나 |
 |---|---|---|
-| 도구오류 | 7 | 조사 (외부 키·한도) |
+| 도구오류 | 9 | 조사 (외부 키·한도) |
 | 중간포기 | 1 | 조사 (외부 키·한도) |
 | 검색부실 | 1 | 조사 (외부 키·한도) |
+| 문장어려움 | 1 | 조사 (외부 키·한도) |
 
 ### 관찰
 
