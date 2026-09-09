@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from app.agent import state
+from app.agent import state, trace
 from app.agent.loop import AgentLoop
 
 log = logging.getLogger("agent.runner")
@@ -25,6 +25,12 @@ async def _drive(run_id: str) -> None:
     except Exception:  # noqa: BLE001 - 배경 작업이 조용히 죽으면 안 된다
         log.exception("루프가 예외로 멈춤: %s", run_id)
         state.set_status(run_id, "failed", "루프 예외")
+    finally:
+        # 루프가 멈출 때마다 기록을 남긴다. 끝까지 못 가도 그때까지가 자료다.
+        try:
+            trace.export(run_id)
+        except Exception:  # noqa: BLE001
+            log.exception("trace 내보내기 실패: %s", run_id)
 
 
 def kick(run_id: str) -> bool:

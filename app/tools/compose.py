@@ -30,7 +30,8 @@ POSES = {
 PARAMS = {
     "type": "object",
     "properties": {
-        "run_id": {"type": "string", "description": "이 실행의 ID. 저장 폴더가 된다."},
+        # run_id 는 스키마에 두지 않는다. 저장 폴더는 앱이 정한다.
+        # 모델에게 맡기면 지어낸 이름으로 새 폴더를 만들어 결과가 실행과 분리된다.
         "section": {"type": "string", "description": "상단바에 표시할 분야. 예) 건강, 복지, 날씨",
                     "default": "생활정보"},
         "cards": {
@@ -62,7 +63,7 @@ PARAMS = {
             },
         },
     },
-    "required": ["run_id", "cards"],
+    "required": ["cards"],
 }
 
 DESCRIPTION = (

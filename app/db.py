@@ -26,10 +26,27 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
-def init_db() -> None:
+# 나중에 추가된 컬럼. 기존 DB 를 지우지 않고 이어 쓰기 위한 최소 이관.
+_MIGRATIONS = (
+    ("runs", "active_ms", "INTEGER NOT NULL DEFAULT 0"),
+)
+
+
+def _migrate(conn: sqlite3.Connection) -> list[str]:
+    applied = []
+    for table, column, decl in _MIGRATIONS:
+        cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            applied.append(f"{table}.{column}")
+    return applied
+
+
+def init_db() -> list[str]:
     sql = SCHEMA_PATH.read_text(encoding="utf-8")
     with closing(connect()) as conn, conn:
         conn.executescript(sql)
+        return _migrate(conn)
 
 
 def table_names() -> list[str]:

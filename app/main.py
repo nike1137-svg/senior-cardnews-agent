@@ -30,5 +30,7 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+# 만들어진 카드를 화면에서 보여주기 위한 것. 우리 산출물뿐이라 비밀정보가 없다.
+app.mount("/output", StaticFiles(directory=get_settings().output_path), name="output")
 app.include_router(pages.router)
 app.include_router(api.router)

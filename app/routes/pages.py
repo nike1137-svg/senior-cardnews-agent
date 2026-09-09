@@ -42,9 +42,13 @@ async def run_detail(request: Request, run_id: str, stale: int = 0):
         return templates.TemplateResponse(request, "missing.html",
                                           {"title": "없는 실행", "run_id": run_id},
                                           status_code=404)
+    out = get_settings().output_path / run_id
+    cards = [f"/output/{run_id}/{p.name}" for p in sorted(out.glob("card_*.png"))] if out.exists() else []
+
     return templates.TemplateResponse(request, "run.html", {
         "title": "진행",
         "run": run,
+        "cards": cards,
         "question": state.open_question(run_id),
         "answers": state.answers_of(run_id),
         "steps": state.step_timing(run_id),

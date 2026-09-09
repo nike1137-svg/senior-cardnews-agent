@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
+import zipfile
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
-from app.agent import runner, state
+from app.agent import runner, state, trace
 from app.config import get_settings
 
 router = APIRouter()
@@ -58,8 +60,50 @@ async def resume(run_id: str):
     """멈춘 실행을 사람이 다시 밀어준다 (상한 도달·예외 뒤)."""
     run = state.get_run(run_id)
     if run and run.status in ("stopped", "failed"):
+        state.clear_stop_reason(run_id)
         state.set_status(run_id, "running")
     runner.kick(run_id)
+    return RedirectResponse(f"/runs/{run_id}", status_code=303)
+
+
+@router.get("/runs/{run_id}/cards.zip")
+async def cards_zip(run_id: str):
+    """완성된 카드를 한 번에 내려받는다."""
+    d = get_settings().output_path / run_id
+    files = sorted(d.glob("card_*.png")) if d.exists() else []
+    if not files:
+        return JSONResponse({"error": "만들어진 카드가 없습니다"}, status_code=404)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in files:
+            z.write(f, arcname=f.name)
+        # 출처 기록을 함께 넣는다. 나중에 무엇을 근거로 만들었는지 확인할 수 있어야 한다
+        z.writestr("outcome.json",
+                   json.dumps(trace.build_outcome(run_id), ensure_ascii=False, indent=2))
+    buf.seek(0)
+    return StreamingResponse(
+        buf, media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{run_id}-cards.zip"'},
+    )
+
+
+@router.get("/runs/{run_id}/trace.json")
+async def trace_json(run_id: str):
+    """도구 호출 순서·판단 근거·소요시간·토큰. 평가 표의 원본."""
+    return JSONResponse(trace.build_trace(run_id))
+
+
+@router.get("/runs/{run_id}/outcome.json")
+async def outcome_json(run_id: str):
+    """완주 여부·사람 개입 횟수·실패 라벨·병목 단계."""
+    return JSONResponse(trace.build_outcome(run_id))
+
+
+@router.post("/runs/{run_id}/export")
+async def export_files(run_id: str):
+    """runs/<실행ID>/ 아래로 두 파일을 떨군다."""
+    trace.export(run_id)
     return RedirectResponse(f"/runs/{run_id}", status_code=303)
 
 

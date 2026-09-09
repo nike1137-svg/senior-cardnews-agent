@@ -55,18 +55,30 @@ class Run:
     model: str
     loop_count: int
     image_calls: int
+    active_ms: int
     stop_reason: str | None
     started_at: str
     ended_at: str | None
 
 
 def _row_to_run(r) -> Run:
+    keys = r.keys()
     return Run(
         run_id=r["run_id"], topic=r["topic"], region=r["region"] or "",
         status=r["status"], provider=r["provider"] or "", model=r["model"] or "",
         loop_count=r["loop_count"], image_calls=r["image_calls"],
+        active_ms=(r["active_ms"] if "active_ms" in keys else 0),
         stop_reason=r["stop_reason"], started_at=r["started_at"], ended_at=r["ended_at"],
     )
+
+
+def add_active_ms(run_id: str, ms: int) -> int:
+    """에이전트가 실제로 일한 시간만 더한다. 사람을 기다린 시간은 빼고 센다."""
+    with closing(connect()) as conn, conn:
+        conn.execute("UPDATE runs SET active_ms = active_ms + ? WHERE run_id = ?",
+                     (max(0, int(ms)), run_id))
+        r = conn.execute("SELECT active_ms FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+    return r["active_ms"]
 
 
 # ── 실행 ────────────────────────────────────────────────────
@@ -108,6 +120,13 @@ def set_status(run_id: str, status: str, stop_reason: str | None = None) -> None
             "ended_at = COALESCE(?, ended_at) WHERE run_id = ?",
             (status, stop_reason, ended, run_id),
         )
+
+
+def clear_stop_reason(run_id: str) -> None:
+    """다시 이어서 진행할 때 지난 중단 사유를 지운다. 안 지우면 화면에 계속 남는다."""
+    with closing(connect()) as conn, conn:
+        conn.execute("UPDATE runs SET stop_reason = NULL, ended_at = NULL WHERE run_id = ?",
+                     (run_id,))
 
 
 def bump_loop(run_id: str) -> int:

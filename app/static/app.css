@@ -176,6 +176,17 @@ button.small {
 .runs th { color: var(--muted); font-weight: 600; }
 .runs a { color: var(--accent); text-decoration: none; font-weight: 600; }
 
+.cards { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 8px; }
+.cards img {
+  width: 150px; border: 1px solid var(--line); border-radius: 8px; display: block;
+  background: #fff;
+}
+.cards a:hover img { border-color: var(--accent); }
+.dl {
+  padding: 8px 14px; background: var(--accent); color: #fff; border-radius: 6px;
+  text-decoration: none; font-size: 14px; font-weight: 700; white-space: nowrap;
+}
+
 .answers { list-style: none; margin: 0; padding: 0; }
 .answers li { padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .answers li:last-child { border-bottom: 0; }

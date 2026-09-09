@@ -84,7 +84,8 @@ class Stopped(Exception):
         self.reason = reason
 
 
-def _elapsed(run: state.Run) -> float:
+def _wall_seconds(run: state.Run) -> float:
+    """시작부터 지금까지의 벽시계 시간. 참고용으로만 쓴다."""
     started = datetime.strptime(run.started_at, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
     return (datetime.now(timezone.utc) - started).total_seconds()
 
@@ -99,9 +100,11 @@ class AgentLoop:
         s = self.settings
         if run.loop_count >= s.max_loop_iterations:
             raise Stopped(f"전체 반복 상한 {s.max_loop_iterations}회 도달")
-        secs = _elapsed(run)
+        # 사람이 답을 기다린 시간은 빼고 잰다. 벽시계로 재면 담당자가
+        # 자리를 비운 사이 상한에 걸려 버린다.
+        secs = run.active_ms / 1000
         if secs > s.max_run_seconds:
-            raise Stopped(f"전체 실행 시간 상한 {s.max_run_seconds}초 초과 ({int(secs)}초)")
+            raise Stopped(f"에이전트 작업 시간 상한 {s.max_run_seconds}초 초과 ({int(secs)}초)")
 
     # ── 모델에게 줄 재료 ────────────────────────────────────
     def _context(self, run: state.Run, phase: dict) -> list[Message]:
@@ -141,7 +144,14 @@ class AgentLoop:
 
     # ── 한 번의 반복 ────────────────────────────────────────
     async def tick(self) -> dict:
-        """한 바퀴 돈다. 무엇을 했는지 돌려준다."""
+        """한 바퀴 돈다. 걸린 시간은 '에이전트가 일한 시간'에만 더한다."""
+        t0 = time.perf_counter()
+        try:
+            return await self._tick()
+        finally:
+            state.add_active_ms(self.run_id, int((time.perf_counter() - t0) * 1000))
+
+    async def _tick(self) -> dict:
         run = state.get_run(self.run_id)
         if run is None:
             raise Stopped("실행을 찾을 수 없다")
@@ -204,7 +214,9 @@ class AgentLoop:
 
         args = dict(call.arguments)
         if tool.name == "compose_cards":
-            args.setdefault("run_id", self.run_id)
+            # 저장 폴더는 **모델이 정하지 않는다.** setdefault 로 뒀더니 모델이 지어낸
+            # 이름(nowon_health_20240909)으로 새 폴더를 만들어 결과가 실행과 분리됐다.
+            args["run_id"] = self.run_id
 
         res = await run_tool(tool, args, run_id=self.run_id, step_no=phase["no"],
                              reason=(result.text or "").strip()[:200] or "다음 행동으로 선택")

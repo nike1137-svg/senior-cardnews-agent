@@ -66,6 +66,21 @@
 </section>
 {% endif %}
 
+{% if cards %}
+<section class="card">
+  <div class="runhead">
+    <h2>만들어진 카드 {{ cards | length }}장</h2>
+    <a class="dl" href="/runs/{{ run.run_id }}/cards.zip">ZIP 내려받기</a>
+  </div>
+  <p class="lead">에이전트가 끝났다고 말한 것과 실제 파일이 있는 것은 다릅니다. 직접 확인하세요.</p>
+  <div class="cards">
+    {% for c in cards %}
+    <a href="{{ c }}" target="_blank"><img src="{{ c }}" alt="카드 {{ loop.index }}"></a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if answers %}
 <section class="card subtle">
   <h2>지금까지 답한 것</h2>
@@ -104,7 +119,16 @@
         <th>도구 호출</th><td id="u-tools">{{ usage.tool_calls }}회 (실패 {{ usage.tool_fails }})</td></tr>
     <tr><th>도구 소요</th><td id="u-ms">{{ (usage.tool_ms / 1000) | round(1) }}초</td>
         <th>루프 반복</th><td id="u-loop">{{ run.loop_count }}</td></tr>
+    <tr><th>작업 시간</th><td>{{ (run.active_ms / 1000) | round(1) }}초</td>
+        <th colspan="2" class="small" style="font-weight:400">
+          사람을 기다린 시간은 빼고 잰 값입니다 (상한 {{ (600) }}초)</th></tr>
   </table>
+  <p class="note" style="color: var(--muted)">
+    기록 내려받기 —
+    <a href="/runs/{{ run.run_id }}/trace.json" target="_blank">trace.json</a> ·
+    <a href="/runs/{{ run.run_id }}/outcome.json" target="_blank">outcome.json</a>
+    <span class="small">(루프가 멈출 때마다 <code>runs/{{ run.run_id }}/</code> 에도 저장됩니다)</span>
+  </p>
 </section>
 
 <script>

@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS runs (
     model         TEXT,
     loop_count    INTEGER NOT NULL DEFAULT 0,
     image_calls   INTEGER NOT NULL DEFAULT 0,
+    -- 에이전트가 실제로 일한 시간. 사람이 답을 기다린 시간은 넣지 않는다.
+    -- 벽시계로 재면 담당자가 자리를 비운 사이 상한에 걸려 버린다.
+    active_ms     INTEGER NOT NULL DEFAULT 0,
     stop_reason   TEXT,                    -- 종료 조건에 걸렸을 때 그 이유
     started_at    TEXT NOT NULL,
     ended_at      TEXT
