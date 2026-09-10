@@ -6,6 +6,7 @@
 
 - 배포 주소: https://cardnews.dodami-ai.com
 - 관련 문서: [PRD.md](./PRD.md) · [DECISIONS.md](./DECISIONS.md) · [EVAL.md](./EVAL.md)
+- 실행 원자료: [docs/sample-run/](docs/sample-run/) — 완주 실행 1건의 `trace.json`·`outcome.json`
 
 > **접속 안내**: 위 주소는 제 노트북에서 도는 서버를 Cloudflare Tunnel로 연결한 것이라
 > 노트북이 켜져 있는 동안에만 열립니다. 닫혀 있어도 아래 캡처와 `EVAL.md`의 실행 기록으로
@@ -32,8 +33,9 @@
 
 ![시작 화면](docs/screenshots/01-start.png)
 
-아래는 2026년 9월 9일에 실제로 돌려 기록한 결과입니다. 손으로 만든 예시가 아닙니다.
-`runs/<실행ID>/trace.json`에 같은 내용이 그대로 남아 있습니다.
+아래는 실제로 돌려 기록한 결과입니다. 손으로 만든 예시가 아닙니다.
+같은 내용이 `runs/<실행ID>/trace.json`에 남고, 그중 한 건은
+[`docs/sample-run/`](docs/sample-run/)에 넣어 뒀습니다.
 
 ### 검색 도구가 실패한 실행
 
@@ -80,14 +82,16 @@ FAULT_INJECT=search_empty,image_fail uv run uvicorn app.main:app --port 8765
 
 ### 준비물
 
-답변 생성에 Google Gemini를 씁니다. 키는 [Google AI Studio](https://aistudio.google.com/apikey)에서
-무료로 받을 수 있습니다.
+**꼭 있어야 하는 것은 `GEMINI_API_KEY` 하나**입니다. 나머지는 없어도 돌아갑니다.
+셋 다 무료로 발급되고 카드 등록도 필요 없습니다.
 
-| 항목 | 필수 | 없으면 |
-|---|---|---|
-| `GEMINI_API_KEY` | 필요합니다 | 에이전트가 아무 판단도 못 합니다 |
-| `TAVILY_API_KEY` | 선택입니다 | 웹 검색이 빠지고 날씨로 진행합니다 |
-| `OPENAI_API_KEY` | 선택입니다 | 모델 비교 실험만 못 합니다 |
+| 키 | 필수 | 어디서 | 무료 한도 | 없으면 |
+|---|---|---|---|---|
+| `GEMINI_API_KEY` | **필요** | [Google AI Studio](https://aistudio.google.com/apikey) | 모델당 하루 20회 | 시작하자마자 멈춥니다 — 판단을 못 합니다 |
+| `TAVILY_API_KEY` | 선택 | [tavily.com](https://tavily.com) | 월 1,000크레딧 | 조사 단계만 실패하고, 에이전트가 사람에게 물어 날씨로 방향을 틉니다 |
+| `OPENAI_API_KEY` | 선택 | [platform.openai.com](https://platform.openai.com) | 유료 (상한이 코드에 박혀 있습니다) | 제공자 비교 실험만 못 합니다 |
+
+LINE 값도 비워 두면 됩니다 — 발송은 dry-run으로 처리됩니다.
 
 ### 설치와 실행
 
@@ -104,16 +108,6 @@ uv run uvicorn app.main:app --port 8765
 브라우저에서 http://localhost:8765 를 엽니다.
 `/healthz`는 서버가 떴는지만 보지 않고 데이터베이스 테이블까지 확인합니다.
 서버가 떴다는 것과 실제로 동작한다는 것은 다르기 때문입니다.
-
-**실행을 걸려면 키 두 개가 필요합니다.** 둘 다 무료로 발급되고 카드 등록도 없습니다.
-
-| 키 | 어디서 | 무료 한도 | 없으면 |
-|---|---|---|---|
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) | 모델당 하루 20회 | 시작하자마자 멈춥니다 (판단을 못 합니다) |
-| `TAVILY_API_KEY` | [tavily.com](https://tavily.com) | 월 1,000크레딧 | 조사 단계만 실패하고, 에이전트가 사람에게 묻고 이어갑니다 |
-
-`OPENAI_API_KEY`는 없어도 됩니다. 제공자를 바꿔 비교할 때만 씁니다(`LLM_PROVIDER=openai`).
-LINE 값도 비워 두면 됩니다 — 발송은 dry-run으로 처리됩니다.
 
 키 없이 켜도 서버는 뜹니다. 실행을 시작하면 **무엇이 없어서 멈췄는지 화면에 그대로 나옵니다.**
 
@@ -326,23 +320,31 @@ Claude Desktop 같은 다른 MCP 클라이언트에 붙이는 방법은
 
 루프가 멈출 때마다 `runs/<실행ID>/`에 두 파일을 남깁니다.
 
+아래는 꾸며 쓴 예시가 아니라 **저장소에 들어 있는 실물**입니다
+([`docs/sample-run/outcome.json`](docs/sample-run/outcome.json)).
+
 ```jsonc
-// outcome.json
+// outcome.json — run-458cf2910262 (실제 발송까지 간 실행)
 {
-  "completed": false,
-  "steps_done": "5/7",
-  "human_interventions": 3,
+  "completed": true,
+  "steps_done": "7/7",
+  "human_interventions": 4,
   "cards_made": true,
-  "tool_calls": 11,
+  "tool_calls": 26,
   "tool_failures": 1,
   "failure_labels": { "도구오류": 1 },
-  "prompt_tokens": 14290,
-  "bottleneck_step": { "step_no": 1, "name": "조사", "seconds": 2.0 }
+  "failure_by_step": { "도구오류": { "3": 1 } },
+  "prompt_tokens": 75648,
+  "usd": 0.0,
+  "bottleneck_step": { "step_no": 1, "name": "조사", "seconds": 12.6 }
 }
 ```
 
 어느 단계가 병목인지를 단계별로 계산해 넣습니다. 실행 전체 시간만 알면
 "느렸다"까지만 알 수 있고 무엇을 고쳐야 하는지는 모릅니다.
+
+`failure_by_step`은 나중에 넣었습니다. 라벨만 세면 **어느 단계에서 났는지 복원할 수 없어서**,
+평가 표의 그 칸이 손으로 적힌 채 오래 틀려 있었습니다.
 
 화면에서도 같은 것을 봅니다. 실행마다 반복 횟수·도구 호출·실패·토큰·비용이 쌓입니다.
 
@@ -380,7 +382,7 @@ uv run python scripts/export_sample_run.py
 | 찾은 것 | 무엇이 문제였나 |
 |---|---|
 | 검색 결과가 모델에 안 갔다 | 저장되는 요약이 건수만 적어(48자), 다음 반복부터 모델은 **URL을 본 적이 없었습니다.** 그래서 원문을 열 수도 없었습니다 |
-| 게시일 표기가 깨졌다 | `Wed, 02 Se` — 앞 10자를 잘라서였습니다. 날짜 대조가 이 과제의 핵심인데 표기가 흐려져 있었습니다 |
+| 게시일 표기가 깨졌다 | `Wed, 02 Se` — 앞 10자를 잘라서였습니다. 날짜 대조가 이 서비스의 핵심인데 표기가 흐려져 있었습니다 |
 | 경고가 뒤 단계로 새어나갔다 | 호출 횟수를 실행 전체로 세니, 조사 단계의 "그만 끝내라"가 심층 검증까지 따라왔습니다 |
 | **게이트가 앞 단계 답변으로 충족됐다** | "이미 답을 받았다면"이 어느 질문인지 구분하지 않아 **사람 개입 지점이 조용히 사라졌습니다.** 확정적이 아니라 돌릴 때마다 달라졌습니다 |
 
