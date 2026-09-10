@@ -33,6 +33,9 @@ data/
 *.db-shm
 *.log
 
+# 에이전트 설정 중 기기별 파일 (허용 규칙에 로컬 경로가 들어간다)
+.claude/settings.local.json
+
 # OS / 에디터
 Thumbs.db
 .DS_Store

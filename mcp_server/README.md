@@ -38,7 +38,7 @@ Claude Desktop 등 다른 MCP 클라이언트에서 쓰려면:
     "senior-cardnews": {
       "command": "uv",
       "args": ["run", "python", "-m", "mcp_server.server"],
-      "cwd": "C:/Users/nike1/projects/study/mainquest4-cardnews"
+      "cwd": "<저장소를 클론한 경로>/senior-cardnews-agent"
     }
   }
 }
