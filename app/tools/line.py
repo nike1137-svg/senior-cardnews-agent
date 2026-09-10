@@ -83,9 +83,30 @@ async def _reachable(client, url: str) -> bool:
         return False
 
 
+def _resolve(image_paths: list[str]) -> tuple[list[Path], str]:
+    """모델이 준 경로를 실제 파일로 맞춘다.
+
+    **모델은 파일명을 지어낸다.** 실제 파일이 `card_01.png` 인데 `card1.png` 을 불렀다.
+    저장 폴더 이름을 앱이 정하게 한 것과 같은 이유다 — 모델이 정하게 열어 두면 지어낸다.
+    모델이 준 것 중 믿는 것은 **어느 실행 폴더인가** 까지이고, 파일 목록은 앱이 직접 읽는다.
+
+    실제 파일이 다 있으면 그대로 쓴다. 없을 때만 폴더에서 찾고, 찾았다는 사실을 밝힌다.
+    """
+    given = [Path(p) for p in (image_paths or [])]
+    if given and all(p.exists() for p in given):
+        return given, ""
+
+    for d in {p.parent for p in given if p.parent.name.startswith("run-")}:
+        found = sorted(d.glob("card_*.png"))
+        if found:
+            return found, (f"모델이 준 파일명이 실제와 달라 폴더에서 직접 찾았다 "
+                           f"({d.name}, {len(found)}장). ")
+    return given, ""
+
+
 async def _send(image_paths: list[str], message: str = "", approved: bool = False) -> ToolResult:
     s = get_settings()
-    files = [Path(p) for p in (image_paths or [])]
+    files, fixed = _resolve(image_paths)
     missing = [str(p) for p in files if not p.exists()]
     if missing:
         return ToolResult(ok=False, summary=f"보낼 파일이 없다: {missing}",
@@ -103,7 +124,7 @@ async def _send(image_paths: list[str], message: str = "", approved: bool = Fals
         return ToolResult(
             ok=True,          # dry-run 은 정상 동작이다. 실패가 아니다
             data={"mode": "dry-run", "count": len(files), "blocked": blocked},
-            summary=(f"[dry-run] 실제 발송하지 않음. 카드 {len(files)}장. "
+            summary=(f"{fixed}[dry-run] 실제 발송하지 않음. 카드 {len(files)}장. "
                      f"잠긴 조건: {', '.join(blocked)}"),
         )
 
