@@ -7,7 +7,6 @@
 credentials*.json
 
 # LMS 원문 — 저장소에 두지 않는다 (공개 전환 시 노출 위험)
-# 사본 위치: C:\Users\nike1\projects\notes\mainquest4-lms\
 docs/reference/
 docs/rubric/
 

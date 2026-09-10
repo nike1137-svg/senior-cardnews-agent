@@ -16,7 +16,6 @@
 제출은 구글폼에 **GitHub 저장소 URL** 하나다 (2026-09-09 안내 변경 — 배포 URL 제출 항목이 삭제됨).
 
 - 저장소: https://github.com/nike1137-svg/senior-cardnews-agent
-- 제출 폼: https://forms.gle/ZHdKgApqf79YswNKA
 - `PRD.md` 포함 ✅
 - ✅ **실제 결과물 캡처본 포함** — `docs/screenshots/` **10장, 전부 README에 삽입 완료**
 
@@ -33,8 +32,7 @@
 
 1. `.env`·API 키·토큰이 섞이지 않았는가
 2. 🔴 **LMS 강의 자료·과제 안내 캡처가 들어 있지 않은가**
-   2026-09-09에 이 문제로 저장소를 통째로 갈아엎었다 (이력 재작성 + 저장소 재생성).
-   원본 사본은 `C:\Users\nike1\projects\notes\mainquest4-lms\` 에 있다. **다시 넣지 말 것.**
+      2026-09-09에 이 문제로 저장소를 통째로 갈아엎었다 (이력 재작성 + 저장소 재생성). **다시 넣지 말 것.**
 
 ```bash
 gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-visibility-change-consequences
@@ -62,7 +60,7 @@ gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-vis
   공개 전 점검은 2026-09-09에 통과함 (`.env`·키·LMS 자료 이력에 없음).
   그 뒤 커밋을 더 했다면 다시 확인할 것.
 
-- [ ] **3. 구글폼 제출** — <https://forms.gle/ZHdKgApqf79YswNKA>
+- [ ] **3. 구글폼 제출** (링크는 과제 안내 페이지에 있다)
   - GitHub 저장소 URL: `https://github.com/nike1137-svg/senior-cardnews-agent`
 
 ### 알아둘 것
@@ -83,8 +81,8 @@ gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-vis
 | `docs/screenshots/README.md` | 제출용 캡처 10장 | 🟡 |
 
 ⚠️ **채점 기준(루브릭)과 강의 자료는 이 저장소에 두지 않는다.** LMS 원문이라 공개 저장소에
-올릴 수 없다. 사본은 `C:\Users\nike1\projects\notes\mainquest4-lms\` 에 있고,
-요구사항은 `PRD.md` 에 자체 언어로 재구성해뒀다. **충돌하면 루브릭이 이긴다.**
+올릴 수 없다. 요구사항은 `PRD.md` 에 자체 언어로 재구성해뒀다.
+**충돌하면 과제 안내가 이긴다.**
 
 ---
 
@@ -108,7 +106,7 @@ gh repo edit nike1137-svg/senior-cardnews-agent --visibility public --accept-vis
 - [x] 폰트 Pretendard 동봉 (OFL, 재배포 가능)
 - [x] 캡처 10장 (전부 README 삽입)
 - [ ] **저장소 공개 전환** ← 제출 직전
-- [x] **n8n 스케줄 트리거 ⭐확장4** — 학원 인스턴스(`n8n.vibemakers.kr`)에 임포트·수동 실행 완료.
+- [x] **n8n 스케줄 트리거 ⭐확장4** — 학원이 운영하는 n8n 인스턴스에 임포트·수동 실행 완료.
   `run-8c1ec54e1699` 이 n8n 에서 시작돼 조사 후 `waiting_for_user` 로 멈춘 것까지 DB 대조함
 - [ ] 카드 버전 롤백 ⭐확장6 (선택)
 
@@ -146,7 +144,7 @@ uv run python -c "from app.config import get_settings as g; s=g(); print({k: boo
 **확장 3·4·5는 모두 끝났다** (MCP 서버 · n8n 자동 트리거 · 검토 에이전트).
 평가 5번이 이름으로 부른 셋이 3/3이다.
 
-n8n 은 **학원 인스턴스**(`n8n.vibemakers.kr`)에 올렸다 (D-021).
+n8n 은 **학원이 운영하는 인스턴스**에 올렸다 (D-021).
 🔴 워크플로가 **Published 상태면 월요일 06:00에 자동 실행**된다 — 한도를 아끼려면 Draft 로 내릴 것.
 
 **카드 버전 롤백 ⭐확장6** — 재생성 전 카드를 남겨두고 되돌리기. 값이 가장 낮다. 남은 유일한 확장.
@@ -227,9 +225,8 @@ n8n 은 **학원 인스턴스**(`n8n.vibemakers.kr`)에 올렸다 (D-021).
 
 ---
 
-## 마커스님 관련 메모
+## 작업 규칙
 
-- **n8n 실사용 경험 있음** (온담이 프로젝트). 새로 배울 필요 없음
-- 자체 호스팅 인프라 보유 (Cloudflare Tunnel, nginx, systemd) → 배포에 유리
-- MCP 서버 제작 경험 있음 (`projects/study/mcp-practice`) → 루브릭 5번 가점 후보
-- 설명할 때는 **단계별로**, 명령어에는 **환경 표시(🐧/🪟/🔴)** 를 붙일 것 (전역 규칙)
+- 명령어를 제시할 때는 **환경 표시**를 붙인다 (🐧 WSL / 🪟 PowerShell / 🔴 관리자)
+- 설명은 **단계별로**. 목적 → 현재 상태 → 실행 후 결과 순으로
+- 오류가 나면 그 작업으로 만들어진 것을 먼저 지우고, 지워진 것을 확인한 뒤 다시 한다
