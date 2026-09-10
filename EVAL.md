@@ -2,6 +2,10 @@
 
 > 이 파일은 **자동 생성된다.** `uv run python scripts/make_eval.py`
 > 숫자는 `runs/<실행ID>/outcome.json` 에서 계산한다. 손으로 적지 않는다.
+>
+> `runs/` 자체는 기기마다 다르고 절대경로가 들어가서 커밋하지 않는다. 대신 **완주한 실행
+> 한 건을 경로만 지워 [`docs/sample-run/`](docs/sample-run/) 에 남겼다** — 아래 숫자가
+> 어디서 나온 것인지 그 파일로 직접 확인할 수 있다.
 
 측정한 실행: **35건**
 
@@ -14,6 +18,10 @@
 | 사람 개입 횟수 | 실행당 질문 수 (적을수록 좋다) | 평균 **1.4회** (최소 0 / 최대 10) |
 | 루프 반복 | 실행당 판단 횟수 | 평균 9.8회 |
 | 도구 실패 | 전체 도구 호출 중 실패 | 23건 / 351건 |
+
+⚠️ **이 「도구 실패」 숫자를 그대로 믿으면 안 된다.** 안에 검토 에이전트의 반려 8건과
+단계 허용 목록이 막은 3건이 섞여 있다 — 둘 다 도구가 깨진 게 아니라
+설계가 작동한 기록이다. 갈라서 센 것은 4장에 있다.
 
 **완주율이 낮은 이유 — 실패한 실행을 지우지 않았다**
 
@@ -30,37 +38,76 @@
 | **질문이 반복 예산을 먹음** | 카드 합성 단계에서 같은 것을 세 번 물어 루프 3회를 태웠다. 재시도 상한은 실패에만 걸리고 **질문은 무제한**이었다 | 단계별 질문 상한 3회 (D-023 후속) |
 | **발송이 지어낸 파일명을 씀** | 실제는 `card_01.png` 인데 모델이 `card1.png` 을 불러 "보낼 파일이 없다" 로 막혔다 | 파일 목록을 앱이 폴더에서 직접 읽는다 |
 | **상한 30 이 여전히 부족** | 세 실행이 연속으로 6/7 에서 상한에 걸렸다. 완주한 실행조차 27 로 90% 를 썼다 | 45 로 조정 (D-024). **원인부터 고치고 올렸다** |
+| 주제 문자열이 깨져 들어옴 | 셸에서 한글을 URL 인코딩 없이 보내 요청 단계에서 손상됐다. **에이전트는 이를 알아채고 진행하지 않고 사람에게 물었다** | 클라이언트 쪽 문제라 요청 방식을 고쳤다. 실행 기록은 깨진 채로 남겨둔다 |
 | **검색 결과가 모델에 안 갔다** | `ToolResult.data` 가 쓰이지 않았다. 저장되는 요약은 `→ 3건` 처럼 **건수만**(48자) 적어, 다음 반복부터 모델은 URL 을 본 적이 없었다 | 요약에 `제목 (게시일) URL` 을 싣고, 관찰 절단 길이를 도구별로 뒀다 (D-022) |
 | **게시일 표기가 깨졌다** | Tavily 가 RFC-2822 를 주는데 앞 10자를 잘라 `Wed, 02 Se` 가 됐다 | `YYYY-MM-DD` 로 정규화. **날짜 대조가 함정 1번**이다 (D-022) |
 | **경고가 뒤 단계로 새어나갔다** | 호출 횟수를 실행 전체로 세니, 단계1 의 *"그만하고 finish_step 하라"* 가 단계3 에도 실려 원문을 열기 전에 종료됐다 | 단계 안에서만 센다 (D-023) |
 | 🔴 **게이트가 앞 단계 답변으로 충족됐다** | *"이미 답을 받았다면"* 이 어느 질문인지 구분하지 않아, 단계2(후보 선택)가 **질문 없이** 통과됐다. 단계4 는 물었다 — 비결정적으로 새는 구조 | 이 단계에서 물은 질문만 근거로 삼고, `finish_step` 을 **코드로 막았다** (D-023) |
 
-앞의 다섯을 고친 뒤의 실행에서 **7/7 단계 완주**했다. 마지막 단계가 발송 승인이라
-사람이 승인해야 `done` 이 되는 구조인 것도 맞다.
+**위쪽 다섯**은 카드가 만들어지는 것 자체를 막던 것들이다. 이것을 고친 뒤에야 첫 7/7 완주가 나왔다.
+마지막 단계가 발송 승인이라 사람이 승인해야 `done` 이 되는 구조인 것도 맞다.
 
-뒤의 일곱은 **완주한 뒤에 발견한 것들**이다. 돌아가는 것과 제대로 돌아가는 것은 다르다.
-`run-ebec96b7eba9` 와, 완주를 다시 시도하며 얻은 네 실행에서 확인했다.
+**나머지는 완주한 뒤에 발견한 것들**이다. 돌아가는 것과 제대로 돌아가는 것은 다르다.
+쌓아둔 `trace.json` 을 다시 읽고, 완주를 여러 번 다시 시도하면서 찾았다.
 
-**완주는 세 번 실패하고 네 번째에 됐다.** 매번 다른 곳에서 막혔고, 막힌 자리마다 원인이 달랐다.
+🔴 **한 번 됐다고 되는 게 아니었다.** 첫 완주를 재현하려 했더니 **세 번 연속으로 실패했다.**
+매번 다른 곳에서 막혔고, 막힌 자리마다 원인이 달랐다.
+한 번의 성공은 고쳐야 할 것이 없다는 뜻이 아니라, **아직 안 눌러 본 곳이 있다는 뜻이었다.**
 
-| 실행 | 루프 | 도달 | 막힌 이유 |
-|---|---|---|---|
-| `run-ca32f9d1e18d` | 30 | 5/7 | 같은 질문 3회 반복으로 예산 소진 |
-| `run-4605c934a58e` | 30 | 6/7 | 발송이 지어낸 파일명을 찾다 실패 |
-| `run-ce638ca65581` | 30 | 6/7 | 상한 자체가 부족 |
-| **`run-e5484e2520c7`** | **27** | **7/7** | **완주** — 세 가지를 다 고친 뒤 |
+| 실행 | 모델 | 루프 | 도달 | 무슨 일이 있었나 |
+|---|---|---|---|---|
+| `run-93d74c2888e7` | `gemini-3-flash-preview` | 27 | **7/7** | 첫 완주 |
+| `run-ca32f9d1e18d` | `gpt-5-mini` | 30 | 5/7 | 재현 시도 ① — 같은 질문 3회 반복으로 예산 소진 |
+| `run-4605c934a58e` | `gpt-5-mini` | 30 | 6/7 | 재현 시도 ② — 발송이 지어낸 파일명을 찾다 실패 |
+| `run-ce638ca65581` | `gpt-5-mini` | 30 | 6/7 | 재현 시도 ③ — 상한 자체가 부족 |
+| **`run-e5484e2520c7`** | `gpt-5-mini` | **27** | **7/7** | **세 가지를 다 고친 뒤 다시 완주** |
+
+**완주 2건이 서로 다른 제공자에서 나왔다.** 막힌 자리는 모델이 아니라 구조에 있었다는 뜻이다 —
+실제로 고친 세 가지 중 모델 쪽 문제는 하나도 없었다.
+
+마지막 완주 실행이 실제로 무엇을 불렀는지 그대로 펼치면 이렇다.
 
 ```
-단계2  ask_human → (사람 답변 2건) → finish     ← 이전에는 finish 만 하고 건너뜀
-단계3  web_search FAIL(이 단계 불허)
-       fetch_article OK  원문 563자 · 게시일 2026-09-04
-       fetch_article OK  게시일 2026-08-16
-       fetch_article OK  (재확인)
-단계4  get_audience_profile → get_card_template → ask_human
+단계1 조사      list_past_publications  ok    {"count": 1, "since": "2026-06-12", "publica
+                web_search              ok    검색어='환절기 건강 수칙 어르신' 최근 7일 → 3건 1. 남양주시 동부보건소
+                web_search              ok    검색어='환절기 건강 수칙 어르신' 최근 30일 → 3건 1. 남양주시 동부보건
+                ask_human               ok    질문: 2026-09-09(어제) '노원구 환절기 건강 수칙' 카드뉴스를 발행했
+                web_search              ok    검색어='실내 낙상 예방 어르신 노원구' 최근 30일 → 9건 1. 노래하는 7
+                ask_human               ok    질문: 노원구 '실내 낙상 예방' 관련 최근 보도 자료가 거의 없습니다. 어떻게
+                finish_step             ok    과거 발행: 2026-09-09 '노원구 환절기 건강 수칙' 카드. 웹 검색 결
+단계2 후보 선택 ask_human               ok    질문: 카드뉴스에 넣을 항목을 최대 3개 골라주세요. (실내 낙상 예방 중심)
+                finish_step             ok    카드뉴스 항목 3개 확정: 미끄럼 줄이기(바닥 정리·미끄럼방지 패드), 조명 개
+단계3 심층 검증 fetch_article           ok    원문 확인: '서초구청 ::오늘 행복하고 내일이 기다려지는 서초::' 게시일=2
+                fetch_article           ok    원문 확인: '남양주시 동부보건소, 어르신 환절기 건강 지킨다… 경로당 찾아 건
+                fetch_article           ok    원문 확인: '서초구청 ::오늘 행복하고 내일이 기다려지는 서초::' 게시일=2
+                finish_step             ok    원문 3건 열람(남양주시 동부보건소 2026-09-07, 서초구청 2025-09
+단계4 스토리보드get_audience_profile    ok    {"who": "60~80대 시니어. 경로당·복지관·시니어 채널을 통해 안내를 
+                ask_human               ok    질문: 카드 5장의 역할(구성)을 하나 골라 주세요.
+                get_card_template       ok    {"size": {"width": 1080, "height": 1350, "no
+                ask_human               ok    질문: 다음은 노원구 '실내 낙상 예방' 카드뉴스 초안(표지 포함 5장)입니다.
+                finish_step             ok    카드뉴스 스토리보드 승인: 카드1 표지, 카드2 바닥 미끄럼 줄이기, 카드3 집
+단계5 카드 합성 compose_cards           ok    카드 5장 생성·검증 완료 → …\output\run-e5484e2520c7
+                검토에이전트            반려  4번 카드에 '도움 요청' 팁과 '노원구 보도자료 미확인'이라는 근거 메모가 한
+단계4 스토리보드finish_step             ok    스토리보드 승인 완료: 카드1 표지, 카드2 바닥 미끄럼 줄이기, 카드3 집 안
+단계5 카드 합성 compose_cards           ok    카드 5장 생성·검증 완료 → …\output\run-e5484e2520c7
+                검토에이전트            ok    모든 검사 항목을 통과했습니다. 날짜·수치에 근거 오류 없음, 어르신이 이해할 
+                finish_step             ok    카드뉴스 5장(표지+미끄럼·조명·손잡이·마무리) 이미지 합성 및 자동검증 통과.
+단계6 검수      ask_human               ok    질문: 카드뉴스 초안(표지 포함 5장, 발행일 제안 2026-09-11 금요일)
+                finish_step             ok    사람으로부터 카드뉴스(표지 포함 5장) 발행 승인 완료 — 발행일 2026-09
+단계7 발송      ask_human               ok    질문: 다음 카드뉴스(주제: 노원구 실내 낙상 예방, 카드 5장, 발행일: 20
+                send_line               ok    [dry-run] 실제 발송하지 않음. 카드 1장. 잠긴 조건: 사람 승인, 환
+                finish_step             ok    사용자가 'Dry-run' 선택: 실제 발송하지 않고 테스트 모드로 처리함. 파
 ```
 
-**`fetch_article` 이 실제로 원문을 열고 게시일을 확인한 첫 실행이다.**
-그전까지는 검색 결과 요약만 보고 넘어갔다 — 이 과제가 반복해서 경고한 함정 그대로였다.
+여기서 볼 것 셋.
+
+- **단계5 → 단계4 로 되돌아간다.** 검토 에이전트가 반려하자 스토리보드를 고치고 다시 합성했다.
+  정해진 순서대로 한 번씩 흐르는 파이프라인이었다면 나올 수 없는 자국이다
+- **`fetch_article` 이 원문을 열고 게시일을 확인했다** (2026-09-07 · 2025-09-24).
+  한 건은 작년 글이라는 것도 이때 드러났다. 검색 결과 요약만 봤으면 몰랐을 일이다 —
+  **요약만 보고 검증했다고 하지 않는다**는 것이 이 프로젝트가 계속 경계한 함정이다
+- **사람에게 7번 물었다.** 설계상 개입 지점은 4곳인데,
+  자료가 부족할 때 묻는 회복 질문이 붙었다
 
 ## 2. 세팅 비교 — 제공자와 모델을 바꿔 가며
 
@@ -73,17 +120,13 @@ uv run python scripts/compare_settings.py --only openai --repeat 3
 끝까지 돌리지 않는 이유는 무료 한도(모델당 하루 20회, D-016) 때문이고,
 비교에 필요한 건 **같은 조건에서의 판단**이지 완주 여부가 아니다.
 
-### 같은 세팅을 3회씩 쟀다
+### 같은 세팅을 3회 이상씩 쟀다
 
 한 번씩만 재면 **모델 간 차이인지 그날의 운인지 구분할 수 없다.**
 LLM 은 같은 입력에도 다르게 답한다.
 
-**주제: 이번 주 시니어 건강·생활 정보**
-
-| 설정한 세팅 | n | 루프 평균 | 루프 폭 | 입력 토큰 평균 | 출력 토큰 평균 | 폴백 | 비용 |
-|---|---|---|---|---|---|---|---|
-| `gemini/gemini-3.5-flash` | 3 | 7.0 | 0 | 12,872 | 358 | 3/3 | 무료 |
-| `gemini/gemini-3.6-flash` | 2 | 6.5 | 9 | 8,200 | 672 | — | 무료 |
+아래 표에는 **같은 방법으로 잰 실행만** 넣었다 — 첫 사람 개입 지점까지(반복 8회 상한).
+끝까지 간 실행을 섞으면 세팅 차이가 아니라 측정 방법 차이를 재게 된다.
 
 **주제: 시니어 환절기 건강 관리**
 
@@ -92,13 +135,7 @@ LLM 은 같은 입력에도 다르게 답한다.
 | `gemini/gemini-3.1-flash-lite` | 4 | 6.0 | 2 | 10,414 | 359 | — | 무료 |
 | `gemini/gemini-3.5-flash` | 4 | 6.0 | 4 | 11,984 | 321 | 3/4 | 무료 |
 | `gemini/gemini-3.5-flash-lite` | 4 | 5.2 | 5 | 9,332 | 296 | — | 무료 |
-| `openai/gpt-5-mini` | 4 | 11.5 | 25 | 37,899 | 16,310 | — | $0.1684 |
-
-**주제: 시니어 독감 예방접종 안내**
-
-| 설정한 세팅 | n | 루프 평균 | 루프 폭 | 입력 토큰 평균 | 출력 토큰 평균 | 폴백 | 비용 |
-|---|---|---|---|---|---|---|---|
-| `gemini/gemini-3.5-flash` | 3 | 13.0 | 18 | 20,125 | 596 | 1/3 | 무료 |
+| `openai/gpt-5-mini` | 3 | 5.3 | 1 | 8,861 | 3,684 | — | $0.0288 |
 
 ### 무엇이 달랐나
 
@@ -111,11 +148,12 @@ LLM 은 같은 입력에도 다르게 답한다.
   모델 차이라고 말할 수 없다. **반복 없이 비교하면 편차를 실력으로 착각한다**
 - **가장 일관된 것은 `gpt-5-mini` 였다** (폭 1). Gemini lite 계열은 폭 2~5 로 흔들렸다.
   운영에서는 평균보다 이 폭이 더 중요할 수 있다 — 매번 다르게 도는 것을 예측할 수 없다
-- **제공자 간 차이가 모델 간 차이보다 컸다.** `gpt-5-mini` 는 출력 토큰이
-  Gemini 계열의 8–10배다(3,300–4,000 vs 250–450). 추론 토큰을 쓰기 때문이다.
-  반대로 입력 토큰은 적다 — 루프를 덜 돌아서다.
-  **"토큰이 많다/적다" 는 제공자를 섞으면 같은 뜻이 아니다**
-- **도구 선택 순서는 제공자를 가리지 않았다.** Gemini 3종과 OpenAI 모두
+- **제공자 간 차이가 모델 간 차이보다 컸다.** `gpt-5-mini` 는 출력 토큰 평균이
+  Gemini 계열의 **10배 안팎**이다(3,684 vs 296~359). 추론 토큰을 쓰기 때문이다.
+  반대로 **입력 토큰은 넷 중 가장 적다** — 루프 수는 lite 계열과 비슷한데도 그렇다.
+  **"토큰이 많다/적다" 는 제공자를 섞으면 같은 뜻이 아니다.**
+  값을 견주려면 토큰이 아니라 달러로 봐야 한다
+- **도구 선택 순서는 제공자를 가리지 않았다.** 위 표의 Gemini 3종과 OpenAI 모두
   `list_past_publications` 를 **가장 먼저** 불렀다. 단계 목표에 도구 이름을 직접 적어둔 것이
   제공자와 무관하게 작동했다 — D-022 에서 얻은 방법이다
 
@@ -131,52 +169,56 @@ Gemini 는 무료 티어라 0원이고, OpenAI 는 기관 지급 크레딧 $5 �
 
 ### 실행별 원자료
 
-**주제: 이번 주 시니어 건강·생활 정보** — 같은 지역·같은 시점, 모델만 바꿈
+**여기에는 끝까지 간 실행도 섞여 있다.** 도구를 어떤 차례로 골랐는지는 완주한 실행에서만
+보이기 때문이다. 어느 쪽으로 잰 것인지 「어디까지」 열에 적었다 —
+`첫 개입까지` 행끼리만 서로 견줄 수 있다.
 
-| 모델 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
-|---|---|---|---|---|
-| `gemini-3.5-flash-lite` | 7 | 12,267 | 350 | list_past_publications → get_weather → web_search → web_search → web_search |
-| `gemini-3.5-flash-lite` | 7 | 13,824 | 379 | list_past_publications → web_search → web_search → get_weather → web_search |
-| `gemini-3.5-flash-lite` | 7 | 12,524 | 345 | list_past_publications → get_weather → web_search → web_search → web_search |
-| `gemini-3.6-flash` | 2 | 2,110 | 63 | get_weather → web_search✗ |
-| `gemini-3.6-flash` | 11 | 14,290 | 1,281 | web_search✗ → get_weather → compose_cards |
+**주제: 이번 주 시니어 건강·생활 정보** — 같은 주제·지역, 모델만 바꿈
 
-**주제: 시니어 환절기 건강 관리** — 같은 지역·같은 시점, 모델만 바꿈
+| 모델 | 어디까지 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
+|---|---|---|---|---|---|
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 12,267 | 350 | list_past_publications → get_weather → web_search → web_search → web_search |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 13,824 | 379 | list_past_publications → web_search → web_search → get_weather → web_search |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 12,524 | 345 | list_past_publications → get_weather → web_search → web_search → web_search |
+| `gemini-3.6-flash` | 첫 개입까지 | 2 | 2,110 | 63 | get_weather → web_search✗ |
+| `gemini-3.6-flash` | 5/7 | 11 | 14,290 | 1,281 | web_search✗ → get_weather → compose_cards |
 
-| 모델 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
-|---|---|---|---|---|
-| `gemini-3.1-flash-lite` | 6 | 9,245 | 463 | list_past_publications → web_search✗ → get_weather → list_past_publications |
-| `gemini-3.1-flash-lite` | 5 | 8,483 | 310 | list_past_publications → web_search → get_weather |
-| `gemini-3.1-flash-lite` | 7 | 13,858 | 355 | list_past_publications → web_search → get_weather → web_search → web_search |
-| `gemini-3.1-flash-lite` | 6 | 10,072 | 309 | list_past_publications → web_search → get_weather → web_search |
-| `gemini-3.5-flash` | 3 | 4,129 | 88 | list_past_publications → get_weather → web_search✗ |
-| `gemini-3.5-flash-lite` | 2 | 2,664 | 60 | list_past_publications → web_search✗ |
-| `gemini-3.5-flash-lite` | 7 | 13,936 | 361 | list_past_publications → get_weather → web_search → web_search → web_search |
-| `gemini-3.5-flash-lite` | 7 | 14,865 | 427 | list_past_publications → web_search → get_weather → web_search → web_search |
-| `gemini-3.5-flash-lite` | 7 | 15,005 | 408 | list_past_publications → web_search → get_weather → web_search → web_search |
-| `gemini-3.5-flash-lite` | 5 | 8,214 | 251 | list_past_publications → get_weather → web_search → web_search |
-| `gemini-3.5-flash-lite` | 7 | 13,020 | 422 | list_past_publications → get_weather → web_search → web_search → web_search |
-| `gemini-3.5-flash-lite` | 7 | 13,432 | 449 | list_past_publications → get_weather → web_search → web_search → web_search |
-| `openai/gpt-5-mini` | 5 | 8,010 | 3,321 | list_past_publications → web_search → web_search → web_search |
-| `openai/gpt-5-mini` | 5 | 8,510 | 3,964 | list_past_publications → web_search → web_search → get_weather |
-| `openai/gpt-5-mini` | 6 | 10,064 | 3,768 | list_past_publications → web_search → web_search → web_search → get_weather |
-| `openai/gpt-5-mini` | 30 | 125,012 | 54,186 | list_past_publications → web_search → get_weather → web_search → web_search → fetch_article → fetch_article → fetch_article✗ → get_audience_profile → get_card_template → compose_cards → 검토에이전트✗ → compose_cards → 검토에이전트✗ → compose_cards → 검토에이전트 |
+**주제: 시니어 환절기 건강 관리** — 같은 주제·지역, 모델만 바꿈
 
-**주제: 시니어 독감 예방접종 안내** — 같은 지역·같은 시점, 모델만 바꿈
+| 모델 | 어디까지 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
+|---|---|---|---|---|---|
+| `gemini-3.1-flash-lite` | 첫 개입까지 | 6 | 9,245 | 463 | list_past_publications → web_search✗ → get_weather → list_past_publications |
+| `gemini-3.1-flash-lite` | 첫 개입까지 | 5 | 8,483 | 310 | list_past_publications → web_search → get_weather |
+| `gemini-3.1-flash-lite` | 첫 개입까지 | 7 | 13,858 | 355 | list_past_publications → web_search → get_weather → web_search → web_search |
+| `gemini-3.1-flash-lite` | 첫 개입까지 | 6 | 10,072 | 309 | list_past_publications → web_search → get_weather → web_search |
+| `gemini-3.5-flash` | 첫 개입까지 | 3 | 4,129 | 88 | list_past_publications → get_weather → web_search✗ |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 2 | 2,664 | 60 | list_past_publications → web_search✗ |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 13,936 | 361 | list_past_publications → get_weather → web_search → web_search → web_search |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 14,865 | 427 | list_past_publications → web_search → get_weather → web_search → web_search |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 15,005 | 408 | list_past_publications → web_search → get_weather → web_search → web_search |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 5 | 8,214 | 251 | list_past_publications → get_weather → web_search → web_search |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 13,020 | 422 | list_past_publications → get_weather → web_search → web_search → web_search |
+| `gemini-3.5-flash-lite` | 첫 개입까지 | 7 | 13,432 | 449 | list_past_publications → get_weather → web_search → web_search → web_search |
+| `openai/gpt-5-mini` | 첫 개입까지 | 5 | 8,010 | 3,321 | list_past_publications → web_search → web_search → web_search |
+| `openai/gpt-5-mini` | 첫 개입까지 | 5 | 8,510 | 3,964 | list_past_publications → web_search → web_search → get_weather |
+| `openai/gpt-5-mini` | 첫 개입까지 | 6 | 10,064 | 3,768 | list_past_publications → web_search → web_search → web_search → get_weather |
+| `openai/gpt-5-mini` | 5/7 | 30 | 125,012 | 54,186 | list_past_publications → web_search → get_weather → web_search → web_search → fetch_article → fetch_article → fetch_article✗ → get_audience_profile → get_card_template → compose_cards → 검토에이전트✗ → compose_cards → 검토에이전트✗ → compose_cards → 검토에이전트 |
 
-| 모델 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
-|---|---|---|---|---|
-| `gemini-3-flash-preview` | 27 | 64,820 | 6,283 | list_past_publications → web_search → web_search → get_weather → web_search → fetch_article✗ → web_search✗ → get_audience_profile → get_card_template → compose_cards → 검토에이전트✗ → get_audience_profile → compose_cards → 검토에이전트 → record_publication |
-| `gemini-3.5-flash` | 2 | 1,252 | 29 | list_past_publications |
-| `gemini-3.5-flash` | 17 | 25,749 | 792 | list_past_publications → web_search → get_weather → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search |
-| `gemini-3.5-flash-lite` | 20 | 33,373 | 966 | list_past_publications → web_search → web_search → get_weather → web_search → web_search → web_search → web_search → web_search → web_search → web_search → get_audience_profile → get_card_template |
+**주제: 시니어 독감 예방접종 안내** — 같은 주제·지역, 모델만 바꿈
 
-**주제: ½Ã´Ï¾î È¯Àý±â °Ç°­ °ü¸®** — 같은 지역·같은 시점, 모델만 바꿈
+| 모델 | 어디까지 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
+|---|---|---|---|---|---|
+| `gemini-3-flash-preview` | 7/7 | 27 | 64,820 | 6,283 | list_past_publications → web_search → web_search → get_weather → web_search → fetch_article✗ → web_search✗ → get_audience_profile → get_card_template → compose_cards → 검토에이전트✗ → get_audience_profile → compose_cards → 검토에이전트 → record_publication |
+| `gemini-3.5-flash` | 첫 개입까지 | 2 | 1,252 | 29 | list_past_publications |
+| `gemini-3.5-flash` | 1/7 | 17 | 25,749 | 792 | list_past_publications → web_search → get_weather → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search → web_search |
+| `gemini-3.5-flash-lite` | 4/7 | 20 | 33,373 | 966 | list_past_publications → web_search → web_search → get_weather → web_search → web_search → web_search → web_search → web_search → web_search → web_search → get_audience_profile → get_card_template |
 
-| 모델 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
-|---|---|---|---|---|
-| `gemini-3.5-flash-lite` | 16 | 44,950 | 1,110 | list_past_publications → web_search → get_weather → web_search → web_search → web_search✗ → fetch_article → fetch_article → fetch_article → get_audience_profile → get_card_template |
-| `openai/gpt-5-mini` | 1 | 1,267 | 998 | — |
+**주제: (주제 깨짐 — 요청 인코딩)** — 같은 주제·지역, 모델만 바꿈
+
+| 모델 | 어디까지 | 루프 | 입력 토큰 | 출력 토큰 | 도구 호출 순서 |
+|---|---|---|---|---|---|
+| `gemini-3.5-flash-lite` | 3/7 | 16 | 44,950 | 1,110 | list_past_publications → web_search → get_weather → web_search → web_search → web_search✗ → fetch_article → fetch_article → fetch_article → get_audience_profile → get_card_template |
+| `openai/gpt-5-mini` | 첫 개입까지 | 1 | 1,267 | 998 | — |
 
 ## 3. 전체 실행 기록
 
@@ -194,8 +236,8 @@ Gemini 는 무료 티어라 0원이고, OpenAI 는 기관 지급 크레딧 $5 �
 | 09-09 14:45 | 시니어 독감 예방접종 안내 | `gemini-3.5-flash` | 1/7 | — | 0 | 17 | 25,749 | list_past_publications → web_search → get_weather → web_search → web_search → we |
 | 09-09 14:50 | 시니어 독감 예방접종 안내 | `gemini-3.5-flash-lite` | 4/7 | — | 3 | 20 | 33,373 | list_past_publications → web_search → web_search → get_weather → web_search → we |
 | 09-09 14:57 | 시니어 독감 예방접종 안내 | `gemini-3-flash-preview` | 7/7 | ⭕ | 6 | 27 | 64,820 | list_past_publications → web_search → web_search → get_weather → web_search → fe |
-| 09-09 15:50 | ½Ã´Ï¾î µ¶°¨ ¿¹¹æÁ¢ | `gemini-3.5-flash-lite` | 3/7 | — | 1 | 12 | 27,655 | list_past_publications → web_search → web_search → web_search → get_weather → ge |
-| 09-09 15:58 | ½Ã´Ï¾î È¯Àý±â °Ç°­ | `gemini-3.5-flash-lite` | 3/7 | — | 1 | 16 | 44,950 | list_past_publications → web_search → get_weather → web_search → web_search → we |
+| 09-09 15:50 | (주제 깨짐 — 요청 인코딩) | `gemini-3.5-flash-lite` | 3/7 | — | 1 | 12 | 27,655 | list_past_publications → web_search → web_search → web_search → get_weather → ge |
+| 09-09 15:58 | (주제 깨짐 — 요청 인코딩) | `gemini-3.5-flash-lite` | 3/7 | — | 1 | 16 | 44,950 | list_past_publications → web_search → get_weather → web_search → web_search → we |
 | 09-09 16:28 | 이번 주 시니어 건강·생활 정보 | `gemini-3.5-flash-lite` | 1/7 | — | 0 | 7 | 12,267 | list_past_publications → get_weather → web_search → web_search → web_search |
 | 09-09 16:29 | 이번 주 시니어 건강·생활 정보 | `gemini-3.5-flash-lite` | 1/7 | — | 0 | 7 | 13,824 | list_past_publications → web_search → web_search → get_weather → web_search |
 | 09-09 16:33 | 이번 주 시니어 건강·생활 정보 | `gemini-3.5-flash-lite` | 1/7 | — | 0 | 7 | 12,524 | list_past_publications → get_weather → web_search → web_search → web_search |
@@ -211,8 +253,8 @@ Gemini 는 무료 티어라 0원이고, OpenAI 는 기관 지급 크레딧 $5 �
 | 09-09 23:10 | 시니어 환절기 건강 관리 | `openai/gpt-5-mini` | 0/7 | — | 0 | 5 | 8,010 | list_past_publications → web_search → web_search → web_search |
 | 09-09 23:11 | 시니어 환절기 건강 관리 | `openai/gpt-5-mini` | 0/7 | — | 0 | 5 | 8,510 | list_past_publications → web_search → web_search → get_weather |
 | 09-09 23:12 | 시니어 환절기 건강 관리 | `openai/gpt-5-mini` | 0/7 | — | 0 | 6 | 10,064 | list_past_publications → web_search → web_search → web_search → get_weather |
-| 09-09 23:38 | ½Ã´Ï¾î È¯Àý±â °Ç°­ | `openai/gpt-5-mini` | 0/7 | — | 0 | 1 | 1,267 | — |
-| 09-09 23:39 | �ôϾ� ȯ���� �ǰ� ��� | `openai/gpt-5-mini` | 0/7 | — | 0 | 1 | 1,250 | — |
+| 09-09 23:38 | (주제 깨짐 — 요청 인코딩) | `openai/gpt-5-mini` | 0/7 | — | 0 | 1 | 1,267 | — |
+| 09-09 23:39 | (주제 깨짐 — 요청 인코딩) | `openai/gpt-5-mini` | 0/7 | — | 0 | 1 | 1,250 | — |
 | 09-09 23:39 | 시니어 환절기 건강 관리 | `openai/gpt-5-mini` | 5/7 | ⭕ | 10 | 30 | 125,012 | list_past_publications → web_search → get_weather → web_search → web_search → fe |
 | 09-09 23:55 | 시니어 환절기 옷차림과 낙상 예방 | `openai/gpt-5-mini` | 6/7 | ⭕ | 7 | 30 | 113,712 | list_past_publications → web_search → web_search → web_search → get_weather → fe |
 | 09-10 00:10 | 시니어 환절기 옷차림 안내 | `openai/gpt-5-mini` | 6/7 | ⭕ | 9 | 30 | 114,081 | list_past_publications → web_search → web_search → get_weather → web_search → fe |
@@ -229,21 +271,49 @@ Gemini 는 무료 티어라 0원이고, OpenAI 는 기관 지급 크레딧 $5 �
 | `gemini/gemini-3.6-flash` | 4 | 1/4 (25%) | 0.8 | 5.0 | 4 | 5,660 |
 | `openai/gpt-5-mini` | 9 | 4/9 (44%) | 3.7 | 15.0 | 10 | 52,115 |
 
+⚠️ **「카드 생성」 열로 모델을 줄 세우지 말 것.** Gemini 행 대부분은 2장의 비교 실험이라
+**첫 사람 개입 지점에서 일부러 멈춘 실행**이다. 카드까지 갈 기회가 없었지 못 간 게 아니다.
+끝까지 돌린 실행은 손에 꼽고, 그건 1장의 완주 표에 있다.
+
 ## 4. 실패 사례 — 어느 단계가 원인이었나
 
-| 실패 라벨 | 횟수 | 어느 단계에서 주로 났나 |
+| 실패 라벨 | 횟수 | 어느 단계에서 났나 |
 |---|---|---|
-| 도구오류 | 13 | 조사 (외부 키·한도) |
-| 사실오류 | 5 | 조사 (외부 키·한도) |
-| 문장어려움 | 3 | 조사 (외부 키·한도) |
-| 중간포기 | 1 | 조사 (외부 키·한도) |
-| 검색부실 | 1 | 조사 (외부 키·한도) |
+| 도구오류 | 13 | 단계1 조사(8건), 단계3 심층 검증(3건), 단계7 발송(2건) |
+| 사실오류 | 5 | 단계5 카드 합성(5건) |
+| 문장어려움 | 3 | 단계5 카드 합성(3건) |
+| 중간포기 | 1 | 단계1 조사(1건) |
+| 검색부실 | 1 | 단계1 조사(1건) |
+
+### 라벨 안을 열어 보면
+
+| 라벨 | 도구 | 단계 | 횟수 | 대표 메시지 |
+|---|---|---|---|---|
+| 도구오류 | `web_search` | 1 조사 | 7 | TAVILY_API_KEY 가 없다 |
+| 사실오류 | `검토에이전트` | 5 카드 합성 | 5 | 카드 2에 기재된 접종 기간(2026-09-04~2026-11-30)은 제공된 근거에서 확인되지 않아 사실오류가 있 _(사유 5종)_ |
+| 문장어려움 | `검토에이전트` | 5 카드 합성 | 3 | 날짜와 수치는 정확하나, '의료기관', '지참' 등 시니어에게 생소한 행정 용어가 포함되었고 마지막 카드에 두 가지 _(사유 3종)_ |
+| 도구오류 | `web_search` | 3 심층 검증 | 2 | web_search 은 이 단계에서 쓸 수 없다. 허용: fetch_article, get_weather |
+| 도구오류 | `send_line` | 7 발송 | 2 | 보낼 파일이 없다: ['…\\output\\run-4605c934a58e\\card1.png', '…\\output |
+| 중간포기 | `판단` | 1 조사 | 1 | 관찰 결과, '환절기 건강 지키는 생활 수칙' 주제는 오늘(9월 9일) 이미 발행된 것으로 확인됩니다. 중복 내용을 |
+| 검색부실 | `web_search` | 1 조사 | 1 | [주입된 실패] 검색 결과 0건 |
+| 도구오류 | `fetch_article` | 1 조사 | 1 | fetch_article 은 이 단계에서 쓸 수 없다. 허용: web_search, get_weather, list |
+| 도구오류 | `fetch_article` | 3 심층 검증 | 1 | 본문 추출 실패 — 미확인 처리: https://www.safekorea.go.kr |
 
 ### 관찰
 
-- **조사 단계에서 실패가 몰린다.** 외부 키가 없거나 무료 한도에 걸리는 경우다.
-  실패해도 에이전트가 사람에게 묻고 날씨로 방향을 틀어 카드를 완성했다
-- **병목은 조사와 카드 합성**이다. 카드 합성은 5장에 1초 안쪽이라 실제 병목은 LLM 판단 시간이다
+- **`도구오류` 13건 중 3건은 고장이 아니라 방어가 작동한 것이다.**
+  단계에 없는 도구를 이름만 대고 불렀고 코드가 막았다. 라벨 한 줄만 보면 도구가
+  깨진 것처럼 읽히는데, 열어 보면 **설계대로 막힌 기록**이다.
+  나머지 10건이 진짜 실패다 — 키 없음 7 · 본문 추출 실패 1 · 지어낸 파일명 2
+- 🔴 **뒤늦게 드러난 쪽이 더 중요하다.** 카드 합성 단계의 8건은 도구가 아니라
+  **검토 에이전트가 잡아낸 것**이다. 그중 `사실오류` 5건은 **4건이 근거에 없는 기상 수치**,
+  1건은 근거에 없는 접종 기간이었다. 이 8건 모두 도구는 성공했고 파일도 멀쩡히 만들어졌다.
+  검토를 안 붙였으면 그대로 나갔다 — **"도구가 성공했다" 와 "내용이 맞다" 는 다르다**
+- **검토 에이전트는 13번 판정해 8번 반려했다** (통과율 38%).
+  만든 것과 같은 모델에게 보게 했는데도 반려가 났다 —
+  역할과 프롬프트를 나눈 것만으로 잡힌다
+- **시간 병목은 조사 한 곳이다.** **조사** 31/33건 (합 332초) · **심층 검증** 2/33건 (합 29초).
+  카드 합성은 5장에 1초 안쪽이라 병목이 된 적이 없다. 남는 시간은 검색 응답과 LLM 판단이다
 - 사람 개입은 설계상 4곳인데, 도구 실패 시 회복 질문이 추가로 붙는다
 
 ## 5. 다음에 바꿔 볼 것

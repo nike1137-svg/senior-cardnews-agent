@@ -65,10 +65,17 @@ def build_outcome(run_id: str) -> dict[str, Any]:
     trace = build_trace(run_id)
     calls = trace["tool_calls"]
 
+    # 라벨만 세면 "어느 단계에서 났나" 를 나중에 복원할 수 없다.
+    # 실제로 EVAL 표가 그 칸을 손으로 적어두고 오래 틀린 채로 있었다. 단계까지 함께 센다.
     labels: dict[str, int] = {}
+    by_step: dict[str, dict[str, int]] = {}
     for c in calls:
         if c["error_label"]:
             labels[c["error_label"]] = labels.get(c["error_label"], 0) + 1
+            # 단계 밖(도구 준비·종료 처리)에서 난 것은 step_no 가 없다. 0 으로 모은다.
+            k = str(c["step_no"] or 0)
+            d = by_step.setdefault(c["error_label"], {})
+            d[k] = d.get(k, 0) + 1
 
     steps = trace["steps"]
     done_steps = [s for s in steps if s["status"] == "done"]
@@ -101,6 +108,7 @@ def build_outcome(run_id: str) -> dict[str, Any]:
         "tool_calls": trace["totals"]["tool_calls"],
         "tool_failures": trace["totals"]["tool_fails"],
         "failure_labels": labels,
+        "failure_by_step": by_step,          # {라벨: {단계번호: 횟수}}, 0 = 단계 밖
         "llm_calls": trace["totals"]["llm_calls"],
         "prompt_tokens": trace["totals"]["prompt_tokens"],
         "completion_tokens": trace["totals"]["completion_tokens"],

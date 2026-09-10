@@ -308,6 +308,14 @@ Claude Desktop 같은 다른 MCP 클라이언트에 붙이는 방법은
 uv run python scripts/make_eval.py
 ```
 
+`runs/`는 기기마다 다르고 절대경로가 들어가서 커밋하지 않습니다. 대신 **완주한 실행 한 건을
+경로만 지워 [`docs/sample-run/`](docs/sample-run/)에 남겼습니다.** `EVAL.md`의 숫자가
+어디서 나온 것인지 그 파일로 직접 확인할 수 있습니다.
+
+```bash
+uv run python scripts/export_sample_run.py
+```
+
 로그를 텍스트로만 흘려보냈으면 이 표를 만들 수 없었습니다.
 그래서 첫 커밋부터 도구 호출과 토큰을 테이블에 쌓았습니다.
 
@@ -512,9 +520,9 @@ app/
   tools/     도구 다섯 종 + MCP 연결 + 실패 주입 + 국내 좌표표
   routes/    화면 · 동작 · SSE
 mcp_server/  자체 MCP 서버
-scripts/     EVAL 생성 · 세팅 비교
+scripts/     EVAL 생성 · 세팅 비교 · 샘플 실행 내보내기
 assets/      캐릭터 자산 네 자세
-docs/        캡처
+docs/        캡처 · sample-run/ (완주 실행 1건의 trace·outcome)
 runs/        trace.json · outcome.json  (git 제외)
 output/      만들어진 카드              (git 제외)
 ```
