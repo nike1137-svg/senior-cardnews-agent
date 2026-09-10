@@ -86,22 +86,34 @@ async def _reachable(client, url: str) -> bool:
 def _resolve(image_paths: list[str]) -> tuple[list[Path], str]:
     """모델이 준 경로를 실제 파일로 맞춘다.
 
-    **모델은 파일명을 지어낸다.** 실제 파일이 `card_01.png` 인데 `card1.png` 을 불렀다.
-    저장 폴더 이름을 앱이 정하게 한 것과 같은 이유다 — 모델이 정하게 열어 두면 지어낸다.
-    모델이 준 것 중 믿는 것은 **어느 실행 폴더인가** 까지이고, 파일 목록은 앱이 직접 읽는다.
+    **모델이 준 것 중 믿는 것은 「어느 실행 폴더인가」 까지다.** 파일 목록은 앱이 직접 읽는다.
+    모델은 파일명을 지어내고(`card_01.png` 을 `card1.png` 으로), 개수도 틀린다.
+    실제로 완주한 실행에서 모델은 **폴더 경로 하나**를 넘겼다 —
+    그것이 존재하는 경로이긴 해서 그대로 통과했고, "카드 1장" 으로 세어졌다.
+    dry-run 이라 드러나지 않았을 뿐, 실발송이었으면 폴더 주소를 이미지로 보내려다 실패한다.
 
-    실제 파일이 다 있으면 그대로 쓴다. 없을 때만 폴더에서 찾고, 찾았다는 사실을 밝힌다.
+    그래서 **폴더를 찾아 그 안의 카드를 앱이 전부 읽는다.** 5장을 만들었으면 5장이 나간다.
+    센 것과 다르면 그 사실을 밝힌다 — 조용히 고치면 다음에 또 모른다.
     """
     given = [Path(p) for p in (image_paths or [])]
-    if given and all(p.exists() for p in given):
+
+    # 폴더를 직접 줬든 파일을 줬든, 실행 폴더를 찾아낸다
+    dirs = {p if p.is_dir() else p.parent for p in given}
+    dirs = {d for d in dirs if d.name.startswith("run-")}
+
+    found: list[Path] = []
+    for d in sorted(dirs):
+        found.extend(sorted(d.glob("card_*.png")))
+
+    if not found:
         return given, ""
 
-    for d in {p.parent for p in given if p.parent.name.startswith("run-")}:
-        found = sorted(d.glob("card_*.png"))
-        if found:
-            return found, (f"모델이 준 파일명이 실제와 달라 폴더에서 직접 찾았다 "
-                           f"({d.name}, {len(found)}장). ")
-    return given, ""
+    named = [p for p in given if p.suffix.lower() == ".png"]
+    if len(named) == len(found) and all(p in found for p in named):
+        return found, ""          # 모델이 정확히 맞혔다. 말을 보탤 필요가 없다
+
+    return found, (f"모델이 준 경로({len(given)}개)와 실제 카드가 달라 "
+                   f"폴더에서 직접 읽었다 ({len(found)}장). ")
 
 
 async def _send(image_paths: list[str], message: str = "", approved: bool = False) -> ToolResult:

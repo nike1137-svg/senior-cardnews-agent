@@ -36,7 +36,7 @@ async def run_list(request: Request):
 
 
 @router.get("/runs/{run_id}", response_class=HTMLResponse)
-async def run_detail(request: Request, run_id: str, stale: int = 0):
+async def run_detail(request: Request, run_id: str, stale: int = 0, empty: int = 0):
     run = state.get_run(run_id)
     if run is None:
         return templates.TemplateResponse(request, "missing.html",
@@ -55,6 +55,7 @@ async def run_detail(request: Request, run_id: str, stale: int = 0):
         "logs": state.logs_after(run_id, 0),
         "usage": state.usage_of(run_id),
         "stale": bool(stale),
+        "empty": bool(empty),
         "working": runner.is_running(run_id),
         "fault_banner": faults.banner(),
     })

@@ -42,6 +42,13 @@ async def submit_answer(
     같은 답을 두 번 보내도 한 번만 실행된다 (state.answer 가 막는다).
     지난 질문에 뒤늦게 답하면 안내만 하고 새 작업을 시작하지 않는다.
     """
+    # 🔴 빈 답은 받지 않는다. 선택지가 없는 질문은 직접 입력이 유일한 입력 수단인데,
+    # 그대로 두면 빈 값이 저장되고 **에이전트가 알아서 해석**한다.
+    # 실제로 발송 승인 질문이 선택지 없이 나온 적이 있다 — 되돌릴 수 없는 단계에서
+    # "답을 받았다" 로 처리되면 안 된다. 답을 안 넣었으면 아직 안 물어본 것이다.
+    if not answer and not free_text.strip():
+        return RedirectResponse(f"/runs/{run_id}?empty=1", status_code=303)
+
     value: object = answer if len(answer) != 1 else answer[0]
     if free_text.strip():
         value = free_text.strip() if not answer else {"선택": value, "직접입력": free_text.strip()}
