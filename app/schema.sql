@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS tool_calls (
     run_id         TEXT REFERENCES runs(run_id) ON DELETE CASCADE,
     step_no        INTEGER,
     tool_name      TEXT NOT NULL,
-    reason         TEXT,                   -- 왜 이 도구를 호출했는가 (루브릭이 요구)
+    reason         TEXT,                   -- 왜 이 도구를 호출했는가. 화면 로그의 핵심
     input_json     TEXT,
     output_summary TEXT,
     ok             INTEGER NOT NULL,       -- 0 | 1. "종료 코드 0" 이 아니라 실물 검증 결과다

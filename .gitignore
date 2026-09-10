@@ -6,7 +6,7 @@
 *.pem
 credentials*.json
 
-# LMS 원문 — 저장소에 두지 않는다 (공개 전환 시 노출 위험)
+# 과제 자료 — 저장소에 두지 않는다 (공개 전환 시 노출 위험)
 docs/reference/
 docs/rubric/
 

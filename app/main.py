@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     get_settings().ensure_dirs()
     init_db()
     # 재시작 복구 — 백그라운드 태스크는 프로세스가 죽으면 유실되지만
-    # 상태 정본이 SQLite 에 있으므로 기동 시 이어갈 수 있다 (D-012, 루브릭 3번).
+    # 상태 정본이 SQLite 에 있으므로 기동 시 이어갈 수 있다 (D-012).
     # 자체 MCP 서버의 도구를 등록한다 (⭐확장3).
     # 붙지 않아도 앱은 나머지 도구로 돌아간다.
     await mcp_bridge.discover()

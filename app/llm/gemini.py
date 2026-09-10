@@ -2,7 +2,7 @@
 
 함수 호출을 지원하는 API 로 직접 호출한다.
 `claude -p` / `opencode run` 같은 CLI 위임은 쓰지 않는다 — 내가 정의한 도구 스키마가
-남지 않아 루브릭 2번의 증거가 약해진다 (D-010).
+남지 않는다 (D-010).
 """
 
 from __future__ import annotations

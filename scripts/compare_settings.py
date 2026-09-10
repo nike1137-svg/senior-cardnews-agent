@@ -1,4 +1,4 @@
-"""세팅을 바꿔 가며 같은 지점까지 돌려 비교한다 (루브릭 4번).
+"""세팅을 바꿔 가며 같은 지점까지 돌려 비교한다.
 
     uv run python scripts/compare_settings.py            # 기본 1회씩
     uv run python scripts/compare_settings.py --repeat 3 # 같은 세팅을 3회씩
