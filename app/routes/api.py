@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from app.agent import runner, state, trace
 from app.config import get_settings
+from app.timefmt import to_kst
 
 router = APIRouter()
 
@@ -117,7 +118,7 @@ async def export_files(run_id: str):
 def _log_line(r: dict) -> dict:
     return {
         "id": r["id"],
-        "at": (r["created_at"] or "")[11:19],
+        "at": to_kst(r["created_at"], "%H:%M:%S"),
         "step": r["step_no"],
         "tool": r["tool_name"],
         "reason": (r["reason"] or "")[:160],

@@ -24,7 +24,7 @@
         <td>{{ r.usage.tool_fails }}</td>
         <td>{{ r.usage.prompt_tokens }}/{{ r.usage.completion_tokens }}</td>
         <td>${{ '%.4f' % r.usage.usd }}</td>
-        <td class="muted small">{{ r.run.started_at }}</td>
+        <td class="muted small">{{ r.run.started_at | kst_full }}</td>
       </tr>
       {% endfor %}
     </tbody>

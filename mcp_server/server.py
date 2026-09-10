@@ -31,6 +31,14 @@ mcp = MCPServer(
 )
 
 
+
+# 발행일 판정은 한국 날짜 기준이다 (아래 list_past_publications 주석 참고).
+KST = timezone(timedelta(hours=9))
+
+
+def _now_kst() -> datetime:
+    return datetime.now(KST)
+
 def _conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     c = sqlite3.connect(DB_PATH, timeout=10)
@@ -57,7 +65,10 @@ def list_past_publications(days: int = 90, keyword: str = "", limit: int = 20) -
         keyword: 제목·키워드에 포함된 말로 거르기 (비우면 전체)
         limit: 최대 건수
     """
-    since = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).strftime("%Y-%m-%d")
+    # 발행일은 **사람이 쓰는 날짜**다. 저장은 UTC 로 두되(기계가 비교할 값),
+    # "며칠 전에 다뤘나" 는 한국 날짜로 따져야 한다 — 밤 9시 이후 발행분이
+    # UTC 로는 전날이 되어 하루씩 밀린다. 실제로 그런 기록이 있다.
+    since = (_now_kst() - timedelta(days=max(1, days))).strftime("%Y-%m-%d")
     sql = "SELECT topic, section, region, card_count, keywords, published_at, note " \
           "FROM publications WHERE published_at >= ?"
     args: list = [since]
@@ -70,10 +81,13 @@ def list_past_publications(days: int = 90, keyword: str = "", limit: int = 20) -
     with closing(_conn()) as c:
         rows = [dict(r) for r in c.execute(sql, args)]
 
-    today = datetime.now(timezone.utc).date()
+    today = _now_kst().date()
     for r in rows:
         try:
-            d = datetime.strptime(r["published_at"][:10], "%Y-%m-%d").date()
+            # 저장된 UTC 시각을 한국 시각으로 옮긴 뒤 날짜를 뽑는다
+            utc = datetime.strptime(r["published_at"][:19], "%Y-%m-%d %H:%M:%S")
+            d = utc.replace(tzinfo=timezone.utc).astimezone(KST).date()
+            r["published_at_kst"] = d.strftime("%Y-%m-%d")
             r["days_ago"] = (today - d).days
         except ValueError:
             r["days_ago"] = None

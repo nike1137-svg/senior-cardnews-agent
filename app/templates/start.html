@@ -29,7 +29,7 @@
     {% for r in recent %}
     <li><a href="/runs/{{ r.run_id }}">{{ r.topic }}</a>
         <span class="badge s-{{ r.status }}">{{ r.status }}</span>
-        <span class="muted small">{{ r.started_at }}</span></li>
+        <span class="muted small">{{ r.started_at | kst }}</span></li>
     {% endfor %}
   </ul>
   <p><a href="/runs">전체 실행 기록 보기</a></p>

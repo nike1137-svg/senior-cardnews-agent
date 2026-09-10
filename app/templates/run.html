@@ -102,7 +102,7 @@
   <ul class="log" id="log">
     {% for l in logs %}
     <li class="{{ 'ok' if l.ok else 'ng' }}">
-      <span class="t">{{ l.created_at[11:19] }}</span>
+      <span class="t">{{ l.created_at | kst_time }}</span>
       <span class="tool">{{ l.tool_name }}</span>
       <span class="ms">{{ l.duration_ms }}ms</span>
       <span class="why">{{ l.reason }}</span>

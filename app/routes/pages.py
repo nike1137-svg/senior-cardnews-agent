@@ -9,10 +9,16 @@ from fastapi.templating import Jinja2Templates
 from app.agent import runner, state
 from app.config import get_settings
 from app.db import EXPECTED_TABLES, table_names
+from app.timefmt import to_kst
 from app.tools import faults
 
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
+
+# 저장은 UTC, 표시는 한국 시간 (app/timefmt.py)
+templates.env.filters["kst"] = to_kst
+templates.env.filters["kst_full"] = lambda s: to_kst(s, "%Y-%m-%d %H:%M:%S")
+templates.env.filters["kst_time"] = lambda s: to_kst(s, "%H:%M:%S")
 
 router = APIRouter()
 
