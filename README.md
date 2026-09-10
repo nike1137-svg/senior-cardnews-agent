@@ -105,6 +105,22 @@ uv run uvicorn app.main:app --port 8765
 `/healthz`는 서버가 떴는지만 보지 않고 데이터베이스 테이블까지 확인합니다.
 서버가 떴다는 것과 실제로 동작한다는 것은 다르기 때문입니다.
 
+**실행을 걸려면 키 두 개가 필요합니다.** 둘 다 무료로 발급되고 카드 등록도 없습니다.
+
+| 키 | 어디서 | 무료 한도 | 없으면 |
+|---|---|---|---|
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) | 모델당 하루 20회 | 시작하자마자 멈춥니다 (판단을 못 합니다) |
+| `TAVILY_API_KEY` | [tavily.com](https://tavily.com) | 월 1,000크레딧 | 조사 단계만 실패하고, 에이전트가 사람에게 묻고 이어갑니다 |
+
+`OPENAI_API_KEY`는 없어도 됩니다. 제공자를 바꿔 비교할 때만 씁니다(`LLM_PROVIDER=openai`).
+LINE 값도 비워 두면 됩니다 — 발송은 dry-run으로 처리됩니다.
+
+키 없이 켜도 서버는 뜹니다. 실행을 시작하면 **무엇이 없어서 멈췄는지 화면에 그대로 나옵니다.**
+
+```
+중단 사유: 루프 예외 — GEMINI_API_KEY 가 없다. Windows 환경변수 또는 .env 를 확인할 것
+```
+
 ### 자체 MCP 서버를 따로 띄울 때
 
 ```bash

@@ -13,6 +13,7 @@ import logging
 
 from app.agent import state, trace
 from app.agent.loop import AgentLoop
+from app.llm.redact import redact
 
 log = logging.getLogger("agent.runner")
 
@@ -22,9 +23,14 @@ _tasks: dict[str, asyncio.Task] = {}
 async def _drive(run_id: str) -> None:
     try:
         await AgentLoop(run_id).run_until_blocked(max_ticks=40)
-    except Exception:  # noqa: BLE001 - 배경 작업이 조용히 죽으면 안 된다
+    except Exception as e:  # noqa: BLE001 - 배경 작업이 조용히 죽으면 안 된다
         log.exception("루프가 예외로 멈춤: %s", run_id)
-        state.set_status(run_id, "failed", "루프 예외")
+        # 🔴 이유를 화면까지 올린다. "루프 예외" 만 띄우면 보는 사람은 아무것도 알 수 없다.
+        # 키가 없어 멈춘 것을 서버 터미널에만 찍고 있었다 — 이 저장소를 처음 켜는 사람이
+        # 정확히 여기서 막힌다.
+        # 예외 메시지에는 남의 라이브러리가 만든 문장도 섞이므로 키 필터를 거친다.
+        reason = redact(" ".join(str(e).split()))[:160] or e.__class__.__name__
+        state.set_status(run_id, "failed", f"루프 예외 — {reason}")
     finally:
         # 루프가 멈출 때마다 기록을 남긴다. 끝까지 못 가도 그때까지가 자료다.
         try:

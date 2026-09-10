@@ -15,9 +15,14 @@ from app.tools import mcp_bridge
 BASE_DIR = Path(__file__).resolve().parent
 
 
+# 🔴 폴더는 여기서 먼저 만든다. 아래 app.mount 는 **모듈을 읽는 순간** 폴더를 찾는데
+# lifespan 은 그보다 나중에 돈다. 내 기기에는 이미 있어서 35번을 돌리는 동안 한 번도
+# 나지 않았고, output/ 가 .gitignore 대상이라 **새로 클론한 사람만 기동에 실패했다.**
+get_settings().ensure_dirs()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_settings().ensure_dirs()
     init_db()
     # 재시작 복구 — 백그라운드 태스크는 프로세스가 죽으면 유실되지만
     # 상태 정본이 SQLite 에 있으므로 기동 시 이어갈 수 있다 (D-012).

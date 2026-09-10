@@ -46,7 +46,9 @@ class Settings(BaseSettings):
     line_to: str = ""
 
     # 카드 이미지를 LINE 에 보내려면 공개 https 주소여야 한다. 로컬 파일은 못 보낸다.
-    public_base_url: str = "https://cardnews.dodami-ai.com"
+    # 기본값은 로컬이다. 특정 배포 주소를 기본값에 박아 두면 이 저장소를 받은 사람이
+    # 자기 카드를 남의 도메인에서 찾게 된다. 실발송하는 쪽이 자기 주소를 넣는다.
+    public_base_url: str = "http://localhost:8765"
 
     # ── 종료 조건 (PRD 3장) ─────────────────────────────────
     max_retry_per_step: int = 3
