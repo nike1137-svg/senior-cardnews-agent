@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 메인퀘스트4 — 시니어 카드뉴스 자동 트리거\n\n**이 워크플로는 판단을 하지 않는다.** 트리거만 담당하고,\n무엇을 조사하고 어떤 카드를 만들지는 앱의 에이전트가 정한다 (DECISIONS D-006).\n\n월요일 06:00 에 제작을 시작해두면, 담당자는 출근해서\n화면에 뜬 질문에 답만 하면 된다.\n\n### 다른 워크플로와 섞지 말 것\n이 인스턴스에는 실서비스(온담이·이음이)가 함께 있다.\n- 이름 접두어 `mq4-` 를 유지한다\n- 자격증명을 기존 것과 공유하지 않는다\n- 실서비스 워크플로는 열지 않는다",
+        "content": "## 메인퀘스트4 — 시니어 카드뉴스 자동 트리거\n\n**이 워크플로는 판단을 하지 않는다.** 트리거만 담당하고,\n무엇을 조사하고 어떤 카드를 만들지는 앱의 에이전트가 정한다 (DECISIONS D-006).\n\n월요일 06:00 에 제작을 시작해두면, 담당자는 출근해서\n화면에 뜬 질문에 답만 하면 된다.\n\n### 다른 워크플로와 섞지 말 것\n이 인스턴스에 운영 중인 서비스가 함께 있을 수 있다.\n- 이름 접두어 `mq4-` 를 유지한다\n- 자격증명을 기존 것과 공유하지 않는다\n- 실서비스 워크플로는 열지 않는다",
         "height": 320,
         "width": 460
       },
@@ -11,7 +11,10 @@
       "name": "읽어둘 것",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-160, -220]
+      "position": [
+        -160,
+        -220
+      ]
     },
     {
       "parameters": {
@@ -28,7 +31,10 @@
       "name": "월요일 06:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-160, 140]
+      "position": [
+        -160,
+        140
+      ]
     },
     {
       "parameters": {
@@ -67,7 +73,10 @@
       "name": "제작 시작 (POST /runs)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [80, 140]
+      "position": [
+        80,
+        140
+      ]
     },
     {
       "parameters": {
@@ -77,7 +86,10 @@
       "name": "실행 주소 정리",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [320, 140]
+      "position": [
+        320,
+        140
+      ]
     }
   ],
   "connections": {
