@@ -86,7 +86,10 @@ async def cards_zip(run_id: str):
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
             z.write(f, arcname=f.name)
-        # 출처 기록을 함께 넣는다. 나중에 무엇을 근거로 만들었는지 확인할 수 있어야 한다
+        # 출처 기록을 함께 넣는다. 나중에 무엇을 근거로 만들었는지 확인할 수 있어야 한다.
+        # outcome.json 은 지표이지 출처가 아니다 — ZIP 만 풀어 본 사람도
+        # 조사 기준일과 연 원문을 알 수 있도록 sources.md 를 같이 넣는다.
+        z.writestr("sources.md", trace.build_sources(run_id))
         z.writestr("outcome.json",
                    json.dumps(trace.build_outcome(run_id), ensure_ascii=False, indent=2))
     buf.seek(0)

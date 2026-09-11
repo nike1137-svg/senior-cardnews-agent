@@ -124,6 +124,109 @@ def build_outcome(run_id: str) -> dict[str, Any]:
     }
 
 
+def build_sources(run_id: str) -> str:
+    """ZIP 에 함께 넣는 출처 기록(`sources.md`).
+
+    **앱이 trace 에서 직접 읽어 만든다. 모델에게 목록을 만들게 하지 않는다.**
+    이 프로젝트는 모델이 파일명을 지어내고 폴더 경로를 파일이라고 넘긴 것을
+    두 번 겪었다(D-025). 출처는 그런 실수가 나면 안 되는 자리다.
+
+    근거는 두 군데서 온다.
+      URL          `fetch_article` 의 입력
+      제목·게시일   그 호출의 결과 요약
+    """
+    import re
+
+    trace = build_trace(run_id)
+    calls = trace["tool_calls"]
+
+    def _kst(s: str | None) -> str:
+        from app.timefmt import to_kst
+        return to_kst(s, "%Y-%m-%d %H:%M")
+
+    # 설정한 모델과 실제로 답한 모델이 다를 수 있다 — 무료 한도에 걸리면 폴백된다.
+    # 출처 기록에서 이걸 뭉뚱그리면 "그 모델로 돌았다" 고 잘못 읽힌다.
+    def _models(tr: dict) -> str:
+        used: dict[str, int] = {}
+        for u in tr["llm_usage"]:
+            used[u["model"]] = used.get(u["model"], 0) + 1
+        conf = f"{tr['provider']}/{tr['model']}"
+        if not used:
+            return f"`{conf}` (설정값)"
+        actual = max(used, key=used.get)
+        if actual == tr["model"]:
+            return f"`{conf}`"
+        return f"`{tr['provider']}/{actual}` — 설정은 `{conf}` 였으나 한도로 폴백됨"
+
+    L = [f"# 출처 기록 — {trace['topic'] or '(주제 없음)'}", ""]
+    L += [
+        f"- 실행 ID: `{run_id}`",
+        f"- 대상 지역: {trace['region'] or '—'}",
+        f"- **조사 기준일: {_kst(trace['started_at'])} (KST)** — 이 시각 기준으로 자료를 모았다",
+        f"- 사용 모델: {_models(trace)}",
+        "",
+        "이 파일은 **앱이 실행 기록에서 직접 생성**했다. 모델이 쓴 목록이 아니다.",
+        "",
+    ]
+
+    # ── 원문을 직접 열어 확인한 것 ──────────────────────────
+    opened = [c for c in calls if c["tool_name"] == "fetch_article" and c["ok"]]
+    L += ["## 원문을 직접 열어 확인한 자료", ""]
+    if opened:
+        L += ["| # | 제목 | 게시일 | URL |", "|---|---|---|---|"]
+        for i, c in enumerate(opened, 1):
+            try:
+                url = json.loads(c["input_json"] or "{}").get("url", "")
+            except json.JSONDecodeError:
+                url = ""
+            s = c["output_summary"] or ""
+            title = (re.search(r"원문 확인: '(.*?)'", s) or [None, "—"])[1]
+            day = (re.search(r"게시일=(\S+)", s) or [None, "—"])[1]
+            L.append(f"| {i} | {title.replace('|', '｜')} | {day} | {url} |")
+    else:
+        L.append("_원문을 연 기록이 없다._")
+    L.append("")
+
+    # ── 검색으로 훑은 범위 ─────────────────────────────────
+    searched = [c for c in calls if c["tool_name"] == "web_search" and c["ok"]]
+    L += ["## 검색으로 훑은 범위", ""]
+    if searched:
+        L += ["| 검색어 | 기간 | 결과 |", "|---|---|---|"]
+        for c in searched:
+            try:
+                inp = json.loads(c["input_json"] or "{}")
+            except json.JSONDecodeError:
+                inp = {}
+            days = inp.get("days")
+            n = (re.search(r"→ (\d+)건", c["output_summary"] or "") or [None, "—"])[1]
+            L.append(f"| {str(inp.get('query', '—')).replace('|', '｜')} "
+                     f"| {f'최근 {days}일' if days else '제한 없음'} | {n}건 |")
+    else:
+        L.append("_검색 기록이 없다._")
+    L.append("")
+
+    # ── 날씨 ───────────────────────────────────────────────
+    weather = [c for c in calls if c["tool_name"] == "get_weather" and c["ok"]]
+    if weather:
+        L += ["## 날씨", "",
+              f"{weather[0]['output_summary']}", "",
+              "출처: Open-Meteo (`timezone=Asia/Seoul` 로 조회해 한국 날짜로 받는다)", ""]
+
+    # ── 카드 순서 ──────────────────────────────────────────
+    out = get_settings().output_path / run_id
+    cards = sorted(out.glob("card_*.png")) if out.exists() else []
+    L += ["## 카드 순서", ""]
+    L += [f"{i}. `{p.name}`" for i, p in enumerate(cards, 1)] or ["_카드 파일이 없다._"]
+    L += ["", "파일명을 이름순으로 정렬하면 카드 순서와 같다.", ""]
+
+    L += ["---", "",
+          "**카드별로 어느 자료를 썼는지는 기록하지 않는다.** 지금 구조에서는 "
+          "스토리보드가 자료를 묶어서 참고하므로, 카드 하나에 출처 하나를 "
+          "갖다 붙이면 실제보다 정확해 보이게 된다. "
+          "무엇을 언제까지 조사했는지와 어떤 원문을 열었는지까지만 남긴다.", ""]
+    return "\n".join(L)
+
+
 def export(run_id: str) -> dict[str, str]:
     """두 파일을 쓰고 경로를 돌려준다."""
     d = _run_dir(run_id)

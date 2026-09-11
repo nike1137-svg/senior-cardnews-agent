@@ -77,7 +77,7 @@ cloudflared --config deploy/cloudflared.yml tunnel run cardnews
 
 **구현은 사실상 끝났다. 남은 것은 선택 항목뿐이다.**
 
-- [x] 기획 — `PRD.md` 11장 · `DECISIONS.md` **D-001~025**
+- [x] 기획 — `PRD.md` 11장 · `DECISIONS.md` **D-001~027**
 - [x] 저장소 정리 — 외부 자료를 이력에서 제거하고 `senior-cardnews-agent` 로 이관
 - [x] 프로젝트 뼈대 — FastAPI + SQLite(WAL), 테이블 6개
 - [x] LLM 어댑터 — 모델 폴백 사슬(429·503), 비용·호출 상한, 키 필터
